@@ -23,12 +23,12 @@ const INTEREST_RATE = 0.05;
 // ===== DATA =====
 let money={}, shopItems=[], links={}, bank={}, daily={}, mailbox={}, linkCodes={};
 
-try { shopItems = JSON.parse(fs.readFileSync('shop.json')); } catch { shopItems=[]; }
-try { money = JSON.parse(fs.readFileSync('money.json')); } catch { money={}; }
-try { links = JSON.parse(fs.readFileSync('links.json')); } catch { links={}; }
-try { bank = JSON.parse(fs.readFileSync('bank.json')); } catch { bank={}; }
-try { daily = JSON.parse(fs.readFileSync('daily.json')); } catch { daily={}; }
-try { mailbox = JSON.parse(fs.readFileSync('mailbox.json')); } catch { mailbox={}; }
+try { shopItems = JSON.parse(fs.readFileSync('shop.json')); } catch {}
+try { money = JSON.parse(fs.readFileSync('money.json')); } catch {}
+try { links = JSON.parse(fs.readFileSync('links.json')); } catch {}
+try { bank = JSON.parse(fs.readFileSync('bank.json')); } catch {}
+try { daily = JSON.parse(fs.readFileSync('daily.json')); } catch {}
+try { mailbox = JSON.parse(fs.readFileSync('mailbox.json')); } catch {}
 
 function saveAll(){
   fs.writeFileSync('shop.json', JSON.stringify(shopItems,null,2));
@@ -39,32 +39,35 @@ function saveAll(){
   fs.writeFileSync('mailbox.json', JSON.stringify(mailbox,null,2));
 }
 
-// ===== UTILS =====
-function generateCode(){
-  const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code="";
-  for(let i=0;i<6;i++){
-    code+=chars[Math.floor(Math.random()*chars.length)];
-  }
-  return code;
+// ===== LOG EMBED =====
+function sendLog(title, desc, color=0x00ffcc){
+  const ch = client.channels.cache.get(LOG_CHANNEL_ID);
+  if(!ch) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(desc)
+    .setColor(color)
+    .setTimestamp();
+
+  ch.send({embeds:[embed]});
 }
 
+// ===== UTILS =====
 function isVIP(member){
   return member.roles.cache.has(VIP_ROLE_ID);
 }
 
 // ===== INTEREST =====
 function applyInterest(){
-  for(const user in bank){
-    const member = client.guilds.cache.get(GUILD_ID)?.members.cache.get(user);
+  for(const u in bank){
+    const member = client.guilds.cache.get(GUILD_ID)?.members.cache.get(u);
     let rate = INTEREST_RATE;
 
-    if(member && member.roles.cache.has(VIP_ROLE_ID)){
-      rate = 0.08;
-    }
+    if(member && member.roles.cache.has(VIP_ROLE_ID)) rate = 0.08;
 
-    const gain = Math.floor(bank[user]*rate);
-    if(gain>0) bank[user]+=gain;
+    const gain = Math.floor(bank[u]*rate);
+    if(gain>0) bank[u]+=gain;
   }
   saveAll();
 }
@@ -72,33 +75,29 @@ function applyInterest(){
 // ===== COMMANDES =====
 const commands=[
 
-  new SlashCommandBuilder().setName('shop').setDescription('Ouvrir le shop'),
-  new SlashCommandBuilder().setName('profil').setDescription('Voir ton profil'),
-  new SlashCommandBuilder().setName('bank').setDescription('Banque'),
-  new SlashCommandBuilder().setName('daily').setDescription('Récompense quotidienne'),
-  new SlashCommandBuilder().setName('mailbox').setDescription('Voir tes messages'),
-  new SlashCommandBuilder().setName('link').setDescription('Lier ton compte'),
+new SlashCommandBuilder().setName('shop').setDescription('Shop'),
+new SlashCommandBuilder().setName('bank').setDescription('Banque'),
+new SlashCommandBuilder().setName('daily').setDescription('Daily'),
+new SlashCommandBuilder().setName('mailbox').setDescription('Mailbox'),
 
-  new SlashCommandBuilder()
-    .setName('additem')
-    .setDescription('Ajouter item')
-    .addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
-    .addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true))
-    .addStringOption(o=>o.setName('give').setDescription('Commande').setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+new SlashCommandBuilder()
+.setName('additem')
+.setDescription('Add item')
+.addStringOption(o=>o.setName('nom').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setRequired(true))
+.addStringOption(o=>o.setName('give').setRequired(true))
+.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-  new SlashCommandBuilder()
-    .setName('sendmail')
-    .setDescription('Envoyer mail')
-    .addUserOption(o=>o.setName('joueur').setDescription('Joueur').setRequired(true))
-    .addStringOption(o=>o.setName('message').setDescription('Message').setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+new SlashCommandBuilder()
+.setName('sendmail')
+.addUserOption(o=>o.setName('joueur').setRequired(true))
+.addStringOption(o=>o.setName('message').setRequired(true))
+.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-  new SlashCommandBuilder()
-    .setName('givevip')
-    .setDescription('Donner VIP')
-    .addUserOption(o=>o.setName('joueur').setDescription('Joueur').setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+new SlashCommandBuilder()
+.setName('givevip')
+.addUserOption(o=>o.setName('joueur').setRequired(true))
+.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
 // ===== INTERACTIONS =====
@@ -107,205 +106,171 @@ try{
 
 // ===== DAILY =====
 if(interaction.isChatInputCommand() && interaction.commandName==="daily"){
-  const user=interaction.user.id;
-  const member=interaction.member;
-  const now=Date.now();
+const u=interaction.user.id;
+const m=interaction.member;
+const now=Date.now();
 
-  if(!daily[user]) daily[user]={last:0,streak:0};
+if(!daily[u]) daily[u]={last:0,streak:0};
 
-  const diff=now-daily[user].last;
+if(now-daily[u].last<86400000)
+return interaction.reply({content:"⏳",ephemeral:true});
 
-  if(diff<86400000){
-    return interaction.reply({content:"⏳ Reviens plus tard",ephemeral:true});
-  }
+daily[u].streak++;
+let reward=(isVIP(m)?300:200)+(daily[u].streak*50);
 
-  if(diff>172800000) daily[user].streak=0;
-  daily[user].streak++;
+if(!money[u]) money[u]=0;
+money[u]+=reward;
+daily[u].last=now;
 
-  let base=isVIP(member)?300:200;
-  let reward=base+(daily[user].streak*50);
-  if(reward>(isVIP(member)?500:400)) reward=isVIP(member)?500:400;
+saveAll();
 
-  if(!money[user]) money[user]=0;
-  money[user]+=reward;
+sendLog("🎁 Daily",`${interaction.user.username} +${reward}`);
 
-  const mc=links[user];
-  if(mc){
-    if(!mailbox[mc]) mailbox[mc]=[];
-    mailbox[mc].push(`🎁 Daily: +${reward}`);
-  }
-
-  daily[user].last=now;
-  saveAll();
-
-  return interaction.reply({content:`💰 +${reward}`,ephemeral:true});
+return interaction.reply({content:`💰 +${reward}`,ephemeral:true});
 }
 
 // ===== SHOP =====
-if(interaction.isChatInputCommand() && interaction.commandName==="shop"){
-  if(interaction.channel.id!==SHOP_CHANNEL_ID){
-    return interaction.reply({content:"❌ Mauvais salon",ephemeral:true});
-  }
+if(interaction.commandName==="shop"){
+if(shopItems.length===0) return interaction.reply("❌ Vide");
 
-  if(shopItems.length===0){
-    return interaction.reply({content:"❌ Shop vide",ephemeral:true});
-  }
+const row=new ActionRowBuilder();
+shopItems.forEach((item,i)=>{
+row.addComponents(
+new ButtonBuilder()
+.setCustomId("buy_"+i)
+.setLabel(`${item.nom} (${item.prix})`)
+.setStyle(ButtonStyle.Primary)
+);
+});
 
-  const row=new ActionRowBuilder();
-
-  shopItems.forEach((item,i)=>{
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId("buy_"+i)
-        .setLabel(`${item.nom} (${item.prix})`)
-        .setStyle(ButtonStyle.Primary)
-    );
-  });
-
-  return interaction.reply({content:"🛒 Shop",components:[row]});
+return interaction.reply({content:"🛒 Shop",components:[row]});
 }
 
-// ===== ACHAT =====
+// ===== BUY =====
 if(interaction.isButton() && interaction.customId.startsWith("buy_")){
-  const user=interaction.user.id;
-  const member=interaction.member;
+const u=interaction.user.id;
+const m=interaction.member;
+const item=shopItems[interaction.customId.split("_")[1]];
 
-  const item=shopItems[interaction.customId.split("_")[1]];
-  let price=item.prix;
+let price=item.prix;
+if(isVIP(m)) price=Math.floor(price*0.9);
 
-  if(isVIP(member)) price=Math.floor(price*0.9);
+if(!money[u]) money[u]=0;
+if(money[u]<price) return interaction.reply({content:"❌",ephemeral:true});
 
-  if(!money[user]) money[user]=0;
+money[u]-=price;
+saveAll();
 
-  if(money[user]<price){
-    return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-  }
+sendLog("🛒 Achat",`${interaction.user.username} ${item.nom} (${price})`);
 
-  money[user]-=price;
-  saveAll();
-
-  return interaction.reply({content:`✅ Achat (${price})`,ephemeral:true});
+return interaction.reply({content:"✅ Achat",ephemeral:true});
 }
 
 // ===== BANK =====
-if(interaction.isChatInputCommand() && interaction.commandName==="bank"){
-  const row=new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("dep").setLabel("📥 Déposer").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId("with").setLabel("📤 Retirer").setStyle(ButtonStyle.Danger)
-  );
-  return interaction.reply({content:"🏦 Banque",components:[row],ephemeral:true});
+if(interaction.commandName==="bank"){
+const row=new ActionRowBuilder().addComponents(
+new ButtonBuilder().setCustomId("dep").setLabel("Déposer").setStyle(ButtonStyle.Success),
+new ButtonBuilder().setCustomId("with").setLabel("Retirer").setStyle(ButtonStyle.Danger)
+);
+return interaction.reply({content:"🏦",components:[row],ephemeral:true});
 }
 
 if(interaction.isButton() && (interaction.customId==="dep"||interaction.customId==="with")){
-  const modal=new ModalBuilder()
-    .setCustomId(interaction.customId==="dep"?"dep_m":"with_m")
-    .setTitle("Banque");
+const modal=new ModalBuilder()
+.setCustomId(interaction.customId==="dep"?"dep_m":"with_m")
+.setTitle("Banque");
 
-  const input=new TextInputBuilder()
-    .setCustomId("amount")
-    .setLabel("Montant")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
+const input=new TextInputBuilder()
+.setCustomId("amount")
+.setLabel("Montant")
+.setStyle(TextInputStyle.Short);
 
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  return interaction.showModal(modal);
+modal.addComponents(new ActionRowBuilder().addComponents(input));
+return interaction.showModal(modal);
 }
 
 if(interaction.isModalSubmit()){
-  const user=interaction.user.id;
-  const amount=parseInt(interaction.fields.getTextInputValue("amount"));
+const u=interaction.user.id;
+const amount=parseInt(interaction.fields.getTextInputValue("amount"));
 
-  if(!money[user]) money[user]=0;
-  if(!bank[user]) bank[user]=0;
+if(!money[u]) money[u]=0;
+if(!bank[u]) bank[u]=0;
 
-  if(isNaN(amount)||amount<=0){
-    return interaction.reply({content:"❌ Montant invalide",ephemeral:true});
-  }
-
-  if(interaction.customId==="dep_m"){
-    if(money[user]<amount) return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-    money[user]-=amount;
-    bank[user]+=amount;
-  }else{
-    if(bank[user]<amount) return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-    bank[user]-=amount;
-    money[user]+=amount;
-  }
-
-  saveAll();
-  return interaction.reply({content:`💰 ${money[user]} / 🏦 ${bank[user]}`,ephemeral:true});
+if(interaction.customId==="dep_m"){
+money[u]-=amount;
+bank[u]+=amount;
+sendLog("🏦 Dépôt",`${interaction.user.username} ${amount}`);
+}else{
+bank[u]-=amount;
+money[u]+=amount;
+sendLog("🏦 Retrait",`${interaction.user.username} ${amount}`);
 }
 
-// ===== MAILBOX =====
-if(interaction.isChatInputCommand() && interaction.commandName==="mailbox"){
-  const user=interaction.user.id;
-  const mc=links[user];
+saveAll();
+return interaction.reply({content:`💰 ${money[u]} | 🏦 ${bank[u]}`,ephemeral:true});
+}
 
-  if(!mc||!mailbox[mc]||mailbox[mc].length===0){
-    return interaction.reply({content:"📭 Aucun message",ephemeral:true});
-  }
+// ===== MAIL =====
+if(interaction.commandName==="mailbox"){
+const u=interaction.user.id;
+const mc=links[u];
 
-  return interaction.reply({content:mailbox[mc].join("\n"),ephemeral:true});
+if(!mc||!mailbox[mc]) return interaction.reply("📭");
+
+return interaction.reply({content:mailbox[mc].join("\n"),ephemeral:true});
 }
 
 // ===== SEND MAIL =====
 if(interaction.commandName==="sendmail"){
-  const user=interaction.options.getUser('joueur');
-  const msg=interaction.options.getString('message');
+const user=interaction.options.getUser('joueur');
+const msg=interaction.options.getString('message');
 
-  const mc=links[user.id];
-  if(!mc) return interaction.reply({content:"❌ Joueur non lié",ephemeral:true});
+const mc=links[user.id];
+if(!mc) return interaction.reply("❌");
 
-  if(!mailbox[mc]) mailbox[mc]=[];
-  mailbox[mc].push(`📩 ADMIN: ${msg}`);
+if(!mailbox[mc]) mailbox[mc]=[];
+mailbox[mc].push(msg);
 
-  saveAll();
+saveAll();
 
-  return interaction.reply({content:"✅ Mail envoyé",ephemeral:true});
+sendLog("📩 Mail",`→ ${user.username}`);
+
+return interaction.reply("✅");
 }
 
-// ===== GIVE VIP =====
+// ===== VIP =====
 if(interaction.commandName==="givevip"){
-  const user=interaction.options.getUser('joueur');
-  const member=await interaction.guild.members.fetch(user.id);
+const user=interaction.options.getUser('joueur');
+const member=await interaction.guild.members.fetch(user.id);
 
-  await member.roles.add(VIP_ROLE_ID);
+await member.roles.add(VIP_ROLE_ID);
 
-  return interaction.reply(`👑 ${user.username} est VIP`);
+sendLog("👑 VIP",`${user.username}`);
+
+return interaction.reply("OK");
 }
 
 // ===== ADD ITEM =====
 if(interaction.commandName==="additem"){
-  shopItems.push({
-    nom:interaction.options.getString('nom'),
-    prix:interaction.options.getInteger('prix'),
-    give:interaction.options.getString('give')
-  });
-  saveAll();
-  return interaction.reply("✅ Item ajouté");
+shopItems.push({
+nom:interaction.options.getString('nom'),
+prix:interaction.options.getInteger('prix'),
+give:interaction.options.getString('give')
+});
+saveAll();
+return interaction.reply("OK");
 }
 
 }catch(e){console.error(e);}
 });
 
-// ===== LINK =====
-client.on('messageCreate', async message=>{
-if(message.author.bot) return;
+// ===== DRAGON =====
+client.on('messageCreate', (msg)=>{
+if(msg.author.bot) return;
 
-if(message.content.startsWith("!link")){
-  const code=message.content.split(" ")[1];
-
-  if(linkCodes[code]){
-    const id=linkCodes[code];
-    links[id]=message.author.username;
-    delete linkCodes[code];
-    saveAll();
-
-    const member=await message.guild.members.fetch(id);
-    if(member) member.roles.add(LINK_ROLE_ID);
-
-    message.channel.send("✅ Compte lié !");
-  }
+if(msg.content.includes("[DRAGON]")){
+client.channels.cache.get(DRAGON_CHANNEL_ID)
+?.send(`🐉 ${msg.content}`);
 }
 });
 
@@ -316,32 +281,11 @@ setInterval(()=>applyInterest(),3600000);
 const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
 
 client.once('clientReady', async()=>{
-  await rest.put(
-    Routes.applicationGuildCommands(client.user.id,GUILD_ID),
-    {body:commands}
-  );
-  console.log("✅ BOT PRÊT");
-});
-// ===== DRAGON ANNOUNCE =====
-client.on('messageCreate', (message) => {
-  if (message.author.bot) return;
-
-  if (message.content.includes("[DRAGON]")) {
-
-    const channel = client.channels.cache.get(DRAGON_CHANNEL_ID);
-
-    if (!channel) return;
-
-    const embed = new EmbedBuilder()
-      .setTitle("🐉 Dragon")
-      .setDescription(message.content.replace("[DRAGON]", ""))
-      .setColor(0x8B0000);
-
-    channel.send({
-      content: "@everyone",
-      embeds: [embed]
-    });
-  }
+await rest.put(
+Routes.applicationGuildCommands(client.user.id,GUILD_ID),
+{body:commands}
+);
+console.log("✅ READY");
 });
 
 client.login(process.env.TOKEN);

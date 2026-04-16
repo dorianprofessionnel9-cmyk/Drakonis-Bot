@@ -12,23 +12,28 @@ const client = new Client({
 // ===== CONFIG =====
 const SHOP_CHANNEL_ID = "1494360495577108600";
 const DRAGON_CHANNEL_ID = "1494336961601863831";
-const GUILD_ID = "1480204997613457541";
 const LOG_CHANNEL_ID = "1494371990113353978";
+const GUILD_ID = "1480204997613457541";
 // ==================
 
 let money = {};
 let shopItems = [];
 
-// LOAD DATA
-if (fs.existsSync('shop.json')) shopItems = JSON.parse(fs.readFileSync('shop.json'));
-if (fs.existsSync('money.json')) money = JSON.parse(fs.readFileSync('money.json'));
+// LOAD DATA SAFE
+try {
+  shopItems = JSON.parse(fs.readFileSync('shop.json'));
+} catch { shopItems = []; }
+
+try {
+  money = JSON.parse(fs.readFileSync('money.json'));
+} catch { money = {}; }
 
 function saveData() {
   fs.writeFileSync('shop.json', JSON.stringify(shopItems, null, 2));
   fs.writeFileSync('money.json', JSON.stringify(money, null, 2));
 }
 
-// COMMANDES
+// ===== COMMANDES =====
 const commands = [
   new SlashCommandBuilder()
     .setName('shop')
@@ -40,24 +45,10 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('additem')
-    .setDescription('Ajouter un item au shop')
-    .addStringOption(o =>
-      o.setName('nom')
-        .setDescription('Nom de l’item')
-        .setRequired(true))
-    .addIntegerOption(o =>
-      o.setName('prix')
-        .setDescription('Prix de l’item')
-        .setRequired(true))
-    .addStringOption(o =>
-      o.setName('give')
-        .setDescription('Commande Minecraft (ex: give @p diamond 1)')
-        .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-  new SlashCommandBuilder()
-    .setName('clearshop')
-    .setDescription('Reset le shop')
+    .setDescription('Ajouter un item')
+    .addStringOption(o => o.setName('nom').setDescription('Nom').setRequired(true))
+    .addIntegerOption(o => o.setName('prix').setDescription('Prix').setRequired(true))
+    .addStringOption(o => o.setName('give').setDescription('Commande give').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
@@ -67,40 +58,27 @@ client.on('interactionCreate', async interaction => {
 
     // ===== PROFIL =====
     if (interaction.isChatInputCommand() && interaction.commandName === "profil") {
-      const guild = interaction.guild;
+
       const user = interaction.user;
-
-      const existing = guild.channels.cache.find(c => c.name === `profil-${user.username}`);
-
-      if (existing) {
-        return interaction.reply({ content: "❌ Tu as déjà un salon profil !", ephemeral: true });
-      }
-
-      const channel = await guild.channels.create({
-        name: `profil-${user.username}`,
-        type: 0,
-        permissionOverwrites: [
-          { id: guild.id, deny: ['ViewChannel'] },
-          { id: user.id, allow: ['ViewChannel', 'SendMessages'] }
-        ]
-      });
 
       if (!money[user.id]) money[user.id] = 200;
 
-      await channel.send(`👋 Bienvenue ${user.username}\n💰 Argent : ${money[user.id]}`);
-      await interaction.reply({ content: "✅ Salon créé !", ephemeral: true });
+      await interaction.reply({
+        content: `👤 ${user.username}\n💰 Argent : ${money[user.id]}`,
+        ephemeral: true
+      });
     }
 
     // ===== SHOP =====
     if (interaction.isChatInputCommand() && interaction.commandName === "shop") {
 
       if (interaction.channel.id !== SHOP_CHANNEL_ID) {
-        return interaction.reply({ content: "❌ Va dans le salon shop !", ephemeral: true });
+        return interaction.reply({ content: "❌ Va dans le salon shop", ephemeral: true });
       }
 
       const embed = new EmbedBuilder()
         .setTitle("🛒 Shop")
-        .setDescription(shopItems.length > 0 ? "Choisis un item" : "❌ Aucun item")
+        .setDescription(shopItems.length ? "Choisis un item" : "❌ Aucun item")
         .setColor(0x00ffcc);
 
       const row = new ActionRowBuilder();
@@ -116,7 +94,7 @@ client.on('interactionCreate', async interaction => {
 
       await interaction.reply({
         embeds: [embed],
-        components: shopItems.length > 0 ? [row] : []
+        components: shopItems.length ? [row] : []
       });
     }
 
@@ -133,46 +111,51 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply("✅ Item ajouté !");
     }
 
-    // ===== ACHAT =====
+    // ===== BOUTON ACHAT =====
     if (interaction.isButton()) {
 
-  await interaction.deferReply({ ephemeral: true }); // 🔥 IMPORTANT
+      const user = interaction.user.id;
+      const username = interaction.user.username;
 
-  const user = interaction.user.id;
-  const username = interaction.user.username;
+      if (!money[user]) money[user] = 200;
 
-  if (!money[user]) money[user] = 200;
+      const index = parseInt(interaction.customId.split("_")[1]);
+      const item = shopItems[index];
 
-  if (interaction.customId.startsWith("buy_")) {
-
-    const index = interaction.customId.split("_")[1];
-    const item = shopItems[index];
-
-    if (!item) {
-      return interaction.editReply({ content: "❌ Item introuvable" });
-    }
-
-    if (money[user] >= item.prix) {
-
-      money[user] -= item.prix;
-      saveData();
-
-      const command = "/" + item.give.replace("@p", username);
-
-      const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-      if (logChannel) {
-        logChannel.send(`🧾 ${username} a acheté ${item.nom}\n💰 ${item.prix}\n📦 ${command}`);
+      if (!item) {
+        return interaction.reply({ content: "❌ Item introuvable", ephemeral: true });
       }
 
-      await interaction.editReply({
-        content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`
-      });
+      if (money[user] >= item.prix) {
 
-    } else {
-      await interaction.editReply({ content: "❌ Pas assez d'argent" });
+        money[user] -= item.prix;
+        saveData();
+
+        const command = "/" + item.give.replace("@p", username);
+
+        // LOG
+        const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+          logChannel.send(`🧾 ${username} a acheté ${item.nom}\n💰 ${item.prix}\n📦 ${command}`);
+        }
+
+        return interaction.reply({
+          content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
+          ephemeral: true
+        });
+
+      } else {
+        return interaction.reply({
+          content: "❌ Pas assez d'argent",
+          ephemeral: true
+        });
+      }
     }
+
+  } catch (err) {
+    console.error(err);
   }
-}
+});
 
 // ===== DRAGON =====
 client.on('messageCreate', (message) => {
@@ -192,19 +175,18 @@ client.on('messageCreate', (message) => {
   }
 });
 
+// ===== REGISTER COMMANDS =====
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 client.once('ready', async () => {
   console.log(`Connecté en tant que ${client.user.tag}`);
 
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-      { body: commands }
-    );
-    console.log("✅ Commandes enregistrées !");
-  } catch (error) {
-    console.error(error);
-  }
+  await rest.put(
+    Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+    { body: commands }
+  );
+
+  console.log("✅ Commandes prêtes !");
 });
+
 client.login(process.env.TOKEN);

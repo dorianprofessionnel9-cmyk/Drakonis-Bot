@@ -201,4 +201,19 @@ client.on('messageCreate', (message) => {
   }
 });
 
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
+client.once('ready', async () => {
+  console.log(`Connecté en tant que ${client.user.tag}`);
+
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+      { body: commands }
+    );
+    console.log("✅ Commandes enregistrées !");
+  } catch (error) {
+    console.error(error);
+  }
+});
 client.login(process.env.TOKEN);

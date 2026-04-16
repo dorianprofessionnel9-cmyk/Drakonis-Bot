@@ -174,43 +174,6 @@ client.on('interactionCreate', async interaction => {
   }
 }
 
-  // 🐉 LOG DISCORD
-  const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-  if (logChannel) {
-    logChannel.send(
-      `🧾 ${username} a acheté ${item.nom}\n💰 Prix : ${item.prix}\n💼 Restant : ${money[user]}\n📦 ${command}`
-    );
-  }
-
-  await interaction.reply({
-    content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
-    ephemeral: true
-  });
-
-}
-
-          money[user] -= item.prix;
-          saveData();
-
-          // 🔥 FUTUR MINECRAFT
-          console.log(`/` + item.give.replace("@p", username));
-
-          await interaction.reply({
-            content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
-            ephemeral: true
-          });
-
-        } else {
-          await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
-        }
-      }
-    }
-
-  } catch (err) {
-    console.error(err);
-  }
-});
-
 // ===== DRAGON =====
 client.on('messageCreate', (message) => {
   if (message.author.bot) return;

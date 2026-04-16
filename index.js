@@ -29,39 +29,68 @@ client.once('ready', async () => {
 // INTERACTIONS
 client.on('interactionCreate', async interaction => {
 
-  // COMMANDE /shop
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === "shop") {
+  try {
 
-      const embed = new EmbedBuilder()
-        .setTitle("🛒 Shop du serveur")
-        .setDescription("Clique pour acheter")
-        .setColor(0x00ffcc);
+    // COMMANDE /shop
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "shop") {
 
-      const row = new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId("buy_sword")
-            .setLabel("⚔️ Épée (100)")
-            .setStyle(ButtonStyle.Primary),
+        await interaction.deferReply(); // 🔥 IMPORTANT
 
-          new ButtonBuilder()
-            .setCustomId("buy_food")
-            .setLabel("🍖 Nourriture (50)")
-            .setStyle(ButtonStyle.Success)
-        );
+        const embed = new EmbedBuilder()
+          .setTitle("🛒 Shop du serveur")
+          .setDescription("Clique pour acheter")
+          .setColor(0x00ffcc);
 
-      await interaction.reply({ embeds: [embed], components: [row] });
+        const row = new ActionRowBuilder()
+          .addComponents(
+            new ButtonBuilder()
+              .setCustomId("buy_sword")
+              .setLabel("⚔️ Épée (100)")
+              .setStyle(ButtonStyle.Primary),
+
+            new ButtonBuilder()
+              .setCustomId("buy_food")
+              .setLabel("🍖 Nourriture (50)")
+              .setStyle(ButtonStyle.Success)
+          );
+
+        await interaction.editReply({ embeds: [embed], components: [row] });
+      }
     }
+
+    // BOUTONS
+    if (interaction.isButton()) {
+
+      const user = interaction.user.id;
+
+      if (!money[user]) money[user] = 200;
+
+      if (interaction.customId === "buy_sword") {
+        if (money[user] >= 100) {
+          money[user] -= 100;
+
+          await interaction.reply({ content: "⚔️ Achat réussi ! Argent restant: " + money[user], ephemeral: true });
+        } else {
+          await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
+        }
+      }
+
+      if (interaction.customId === "buy_food") {
+        if (money[user] >= 50) {
+          money[user] -= 50;
+
+          await interaction.reply({ content: "🍖 Achat réussi ! Argent restant: " + money[user], ephemeral: true });
+        } else {
+          await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error(err);
   }
-
-  // BOUTONS
-  if (interaction.isButton()) {
-
-    const user = interaction.user.id;
-
-    if (!money[user]) money[user] = 200;
-
+});
     // ÉPÉE
     if (interaction.customId === "buy_sword") {
       if (money[user] >= 100) {

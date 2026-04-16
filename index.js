@@ -97,30 +97,34 @@ client.on('interactionCreate', async interaction => {
     // ===== SHOP =====
     if (interaction.isChatInputCommand() && interaction.commandName === "shop") {
 
-      if (interaction.channel.id !== SHOP_CHANNEL_ID) {
-        return interaction.reply({ content: "❌ Va dans le salon shop !", ephemeral: true });
-      }
+  if (interaction.channel.id !== SHOP_CHANNEL_ID) {
+    return interaction.reply({
+      content: "❌ Va dans le salon shop !",
+      ephemeral: true
+    });
+  }
 
-      await interaction.deferReply();
+  const embed = new EmbedBuilder()
+    .setTitle("🛒 Shop")
+    .setDescription(shopItems.length > 0 ? "Choisis un item" : "❌ Aucun item dans le shop")
+    .setColor(0x00ffcc);
 
-      const embed = new EmbedBuilder()
-        .setTitle("🛒 Shop")
-        .setDescription("Choisis un item")
-        .setColor(0x00ffcc);
+  const row = new ActionRowBuilder();
 
-      const row = new ActionRowBuilder();
+  shopItems.forEach((item, index) => {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId("buy_" + index)
+        .setLabel(`${item.nom} (${item.prix})`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  });
 
-      shopItems.forEach((item, index) => {
-        row.addComponents(
-          new ButtonBuilder()
-            .setCustomId("buy_" + index)
-            .setLabel(`${item.nom} (${item.prix})`)
-            .setStyle(ButtonStyle.Primary)
-        );
-      });
-
-      await interaction.editReply({ embeds: [embed], components: [row] });
-    }
+  await interaction.reply({
+    embeds: [embed],
+    components: shopItems.length > 0 ? [row] : []
+  });
+}
 
     // ===== ADD ITEM ADMIN =====
     if (interaction.isChatInputCommand() && interaction.commandName === "additem") {

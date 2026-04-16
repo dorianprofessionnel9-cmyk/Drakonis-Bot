@@ -1,12 +1,18 @@
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, REST, Routes } = require('discord.js');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
+let money = {}; // banque simple
+
+// COMMANDES
 const commands = [
-  new SlashCommandBuilder().setName('dragon').setDescription('Annonce un dragon'),
-  new SlashCommandBuilder().setName('event').setDescription('Annonce un event'),
+  new SlashCommandBuilder().setName('shop').setDescription('Ouvrir le shop'),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -14,52 +20,94 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 client.once('ready', async () => {
   console.log(`Connecté en tant que ${client.user.tag}`);
 
-  try {
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands }
-    );
-    console.log("Commandes enregistrées !");
-  } catch (error) {
-    console.error(error);
-  }
+  await rest.put(
+    Routes.applicationCommands(client.user.id),
+    { body: commands }
+  );
 });
 
+// INTERACTIONS
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === 'dragon') {
-    const embed = new EmbedBuilder()
-      .setTitle("🐉 Dragon apparu !")
-      .setDescription("Un dragon vient d'apparaître dans le monde !")
-      .setColor(0xff0000);
+  // COMMANDE /shop
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "shop") {
 
-    await interaction.reply({ content: "@everyone", embeds: [embed] });
+      const embed = new EmbedBuilder()
+        .setTitle("🛒 Shop du serveur")
+        .setDescription("Clique pour acheter")
+        .setColor(0x00ffcc);
+
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId("buy_sword")
+            .setLabel("⚔️ Épée (100)")
+            .setStyle(ButtonStyle.Primary),
+
+          new ButtonBuilder()
+            .setCustomId("buy_food")
+            .setLabel("🍖 Nourriture (50)")
+            .setStyle(ButtonStyle.Success)
+        );
+
+      await interaction.reply({ embeds: [embed], components: [row] });
+    }
   }
 
-  if (interaction.commandName === 'event') {
-    const embed = new EmbedBuilder()
-      .setTitle("🎉 Event en cours !")
-      .setDescription("Un événement est disponible ! Rejoignez vite !")
-      .setColor(0x00ffcc);
+  // BOUTONS
+  if (interaction.isButton()) {
 
-    await interaction.reply({ embeds: [embed] });
+    const user = interaction.user.id;
+
+    if (!money[user]) money[user] = 200;
+
+    // ÉPÉE
+    if (interaction.customId === "buy_sword") {
+      if (money[user] >= 100) {
+        money[user] -= 100;
+
+        console.log("Donner épée à joueur");
+
+        await interaction.reply({ content: "⚔️ Achat réussi ! Argent restant: " + money[user], ephemeral: true });
+      } else {
+        await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
+      }
+    }
+
+    // NOURRITURE
+    if (interaction.customId === "buy_food") {
+      if (money[user] >= 50) {
+        money[user] -= 50;
+
+        console.log("Donner nourriture");
+
+        await interaction.reply({ content: "🍖 Achat réussi ! Argent restant: " + money[user], ephemeral: true });
+      } else {
+        await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
+      }
+    }
   }
 });
 
+// 🔥 ANNONCES DRAGON (Minecraft → Discord)
 client.on('messageCreate', (message) => {
   if (message.author.bot) return;
 
   if (message.content.includes("[DRAGON]")) {
+
     const channel = client.channels.cache.get("1494336961601863831");
 
     if (channel) {
       const embed = new EmbedBuilder()
-        .setTitle("🐉 Dragon détecté")
+        .setTitle("🐉 Alerte Dragon")
         .setDescription(message.content)
         .setColor(0x8B0000);
 
-      channel.send({ content: "@everyone", embeds: [embed] });
+      channel.send({
+        content: "@everyone",
+        embeds: [embed]
+      });
     }
   }
 });

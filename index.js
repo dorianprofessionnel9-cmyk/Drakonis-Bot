@@ -23,11 +23,11 @@ const INTEREST_RATE = 0.05;
 // ===== DATA =====
 let money = {}, shopItems = [], links = {}, kills = {}, bank = {}, linkCodes = {};
 
-try { shopItems = JSON.parse(fs.readFileSync('shop.json')); } catch {}
-try { money = JSON.parse(fs.readFileSync('money.json')); } catch {}
-try { links = JSON.parse(fs.readFileSync('links.json')); } catch {}
-try { kills = JSON.parse(fs.readFileSync('kills.json')); } catch {}
-try { bank = JSON.parse(fs.readFileSync('bank.json')); } catch {}
+try { shopItems = JSON.parse(fs.readFileSync('shop.json')); } catch { shopItems = []; }
+try { money = JSON.parse(fs.readFileSync('money.json')); } catch { money = {}; }
+try { links = JSON.parse(fs.readFileSync('links.json')); } catch { links = {}; }
+try { kills = JSON.parse(fs.readFileSync('kills.json')); } catch { kills = {}; }
+try { bank = JSON.parse(fs.readFileSync('bank.json')); } catch { bank = {}; }
 
 function saveAll() {
   fs.writeFileSync('shop.json', JSON.stringify(shopItems, null, 2));
@@ -37,7 +37,7 @@ function saveAll() {
   fs.writeFileSync('bank.json', JSON.stringify(bank, null, 2));
 }
 
-// ===== CODE LINK =====
+// ===== UTIL =====
 function generateCode() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -56,29 +56,30 @@ function applyInterest() {
   saveAll();
 
   const log = client.channels.cache.get(LOG_CHANNEL_ID);
-  if (log) log.send("💎 Intérêts bancaires distribués !");
+  if (log) log.send("💎 Intérêts distribués !");
 }
 
 // ===== COMMANDES =====
 const commands = [
-  new SlashCommandBuilder().setName('shop').setDescription('Shop'),
-  new SlashCommandBuilder().setName('profil').setDescription('Profil'),
+
+  new SlashCommandBuilder().setName('shop').setDescription('Ouvrir le shop'),
+  new SlashCommandBuilder().setName('profil').setDescription('Voir ton profil'),
   new SlashCommandBuilder().setName('leaderboard').setDescription('Classement argent'),
   new SlashCommandBuilder().setName('pvptop').setDescription('Classement PvP'),
   new SlashCommandBuilder().setName('link').setDescription('Lier Minecraft'),
-  new SlashCommandBuilder().setName('bank').setDescription('Banque'),
+  new SlashCommandBuilder().setName('bank').setDescription('Ouvrir la banque'),
 
   new SlashCommandBuilder()
     .setName('setuplinkpanel')
-    .setDescription('Créer panel link')
+    .setDescription('Créer panel de liaison')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   new SlashCommandBuilder()
     .setName('additem')
-    .setDescription('Ajouter item')
-    .addStringOption(o => o.setName('nom').setRequired(true))
-    .addIntegerOption(o => o.setName('prix').setRequired(true))
-    .addStringOption(o => o.setName('give').setRequired(true))
+    .setDescription('Ajouter un item')
+    .addStringOption(o => o.setName('nom').setDescription('Nom de l’item').setRequired(true))
+    .addIntegerOption(o => o.setName('prix').setDescription('Prix').setRequired(true))
+    .addStringOption(o => o.setName('give').setDescription('Commande give').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
@@ -87,7 +88,8 @@ client.on('interactionCreate', async interaction => {
   try {
 
     // ===== PANEL =====
-    if (interaction.commandName === "setuplinkpanel") {
+    if (interaction.isChatInputCommand() && interaction.commandName === "setuplinkpanel") {
+
       const embed = new EmbedBuilder()
         .setTitle("🔗 Liaison Minecraft")
         .setDescription("Clique pour lier ton compte")
@@ -104,24 +106,24 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: "✅ Panel créé", ephemeral: true });
     }
 
-    // ===== BOUTON LINK =====
+    // ===== LINK BUTTON =====
     if (interaction.isButton() && interaction.customId === "link_account") {
+
       const code = generateCode();
       linkCodes[code] = interaction.user.id;
 
       return interaction.reply({
-        content: `🔗 Code : \`${code}\`\nTape en jeu : !link ${code}`,
+        content: `🔗 Code : \`${code}\`\nTape : !link ${code}`,
         ephemeral: true
       });
     }
 
     // ===== BANK MENU =====
-    if (interaction.commandName === "bank") {
+    if (interaction.isChatInputCommand() && interaction.commandName === "bank") {
 
       const embed = new EmbedBuilder()
         .setTitle("🏦 Banque")
-        .setDescription("Choisis une action")
-        .setColor(0x00ffcc);
+        .setDescription("Choisis une action");
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId("deposit_modal").setLabel("📥 Déposer").setStyle(ButtonStyle.Success),
@@ -132,23 +134,21 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ===== MODAL OPEN =====
-    if (interaction.isButton()) {
+    if (interaction.isButton() && (interaction.customId === "deposit_modal" || interaction.customId === "withdraw_modal")) {
 
-      if (interaction.customId === "deposit_modal" || interaction.customId === "withdraw_modal") {
+      const modal = new ModalBuilder()
+        .setCustomId(interaction.customId === "deposit_modal" ? "deposit_submit" : "withdraw_submit")
+        .setTitle("Banque");
 
-        const modal = new ModalBuilder()
-          .setCustomId(interaction.customId === "deposit_modal" ? "deposit_submit" : "withdraw_submit")
-          .setTitle("💰 Banque");
+      const input = new TextInputBuilder()
+        .setCustomId("amount")
+        .setLabel("Montant")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
-        const input = new TextInputBuilder()
-          .setCustomId("amount")
-          .setLabel("Montant")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
 
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        return interaction.showModal(modal);
-      }
+      return interaction.showModal(modal);
     }
 
     // ===== MODAL SUBMIT =====
@@ -192,8 +192,10 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ===== PROFIL =====
-    if (interaction.commandName === "profil") {
+    if (interaction.isChatInputCommand() && interaction.commandName === "profil") {
+
       const u = interaction.user.id;
+
       if (!money[u]) money[u] = 0;
       if (!bank[u]) bank[u] = 0;
 
@@ -203,102 +205,8 @@ client.on('interactionCreate', async interaction => {
       });
     }
 
-    // ===== SHOP =====
-    if (interaction.commandName === "shop") {
-
-      if (interaction.channel.id !== SHOP_CHANNEL_ID) {
-        return interaction.reply({ content: "❌ Mauvais salon", ephemeral: true });
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle("🛒 Shop")
-        .setDescription(shopItems.length ? "Choisis" : "Vide");
-
-      const row = new ActionRowBuilder();
-
-      shopItems.forEach((item, i) => {
-        row.addComponents(
-          new ButtonBuilder()
-            .setCustomId("buy_" + i)
-            .setLabel(`${item.nom} (${item.prix})`)
-            .setStyle(ButtonStyle.Primary)
-        );
-      });
-
-      return interaction.reply({ embeds: [embed], components: shopItems.length ? [row] : [] });
-    }
-
-    // ===== ACHAT =====
-    if (interaction.isButton() && interaction.customId.startsWith("buy_")) {
-
-      const user = interaction.user.id;
-      const mc = links[user];
-
-      if (!mc) return interaction.reply({ content: "❌ Fais /link", ephemeral: true });
-
-      if (!money[user]) money[user] = 0;
-
-      const item = shopItems[interaction.customId.split("_")[1]];
-
-      if (money[user] < item.prix) {
-        return interaction.reply({ content: "❌ Pas assez", ephemeral: true });
-      }
-
-      money[user] -= item.prix;
-      saveAll();
-
-      const cmd = "/" + item.give.replace("@p", mc);
-
-      const log = client.channels.cache.get(LOG_CHANNEL_ID);
-      if (log) log.send(`🧾 ${mc} → ${cmd}`);
-
-      return interaction.reply({ content: "✅ Achat", ephemeral: true });
-    }
-
-    // ===== ADD ITEM =====
-    if (interaction.commandName === "additem") {
-      shopItems.push({
-        nom: interaction.options.getString('nom'),
-        prix: interaction.options.getInteger('prix'),
-        give: interaction.options.getString('give')
-      });
-      saveAll();
-      return interaction.reply("✅ Ajouté");
-    }
-
-    // ===== LINK =====
-    if (interaction.commandName === "link") {
-      const code = generateCode();
-      linkCodes[code] = interaction.user.id;
-
-      return interaction.reply({
-        content: `Code : ${code}\n!link ${code}`,
-        ephemeral: true
-      });
-    }
-
-    // ===== LEADERBOARD =====
-    if (interaction.commandName === "leaderboard") {
-      const sorted = Object.entries(money).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      let desc = "";
-      sorted.forEach((u,i)=>{
-        desc += `${["🥇","🥈","🥉"][i]||"🏅"} <@${u[0]}> — ${u[1]}\n`;
-      });
-      return interaction.reply({ embeds:[new EmbedBuilder().setTitle("🏆").setDescription(desc||"Vide")] });
-    }
-
-    // ===== PVP =====
-    if (interaction.commandName === "pvptop") {
-      const sorted = Object.entries(kills).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      let desc = "";
-      sorted.forEach((p,i)=>{
-        desc += `${["🥇","🥈","🥉"][i]||"🏅"} ${p[0]} — ${p[1]}\n`;
-      });
-      return interaction.reply({ embeds:[new EmbedBuilder().setTitle("⚔️").setDescription(desc||"Vide")] });
-    }
-
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error(err);
   }
 });
 
@@ -307,12 +215,15 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   if (message.content.startsWith("!link")) {
+
     const code = message.content.split(" ")[1];
 
     if (linkCodes[code]) {
+
       const id = linkCodes[code];
       links[id] = message.author.username;
       delete linkCodes[code];
+
       saveAll();
 
       const member = await message.guild.members.fetch(id);
@@ -323,9 +234,12 @@ client.on('messageCreate', async message => {
   }
 
   if (message.content.includes("[KILL]")) {
+
     const killer = message.content.split(" ")[1];
-    if (!kills[killer]) kills[killer]=0;
+
+    if (!kills[killer]) kills[killer] = 0;
     kills[killer]++;
+
     saveAll();
   }
 });
@@ -336,7 +250,7 @@ setInterval(() => applyInterest(), 3600000);
 // ===== REGISTER =====
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Connecté en tant que ${client.user.tag}`);
 
   await rest.put(

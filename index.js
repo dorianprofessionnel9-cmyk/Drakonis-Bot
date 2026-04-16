@@ -29,7 +29,9 @@ function saveData() {
 
 // COMMANDES
 const commands = [
-  new SlashCommandBuilder().setName('shop').setDescription('Ouvrir le shop'),
+  new SlashCommandBuilder()
+    .setName('shop')
+    .setDescription('Ouvrir le shop'),
 
   new SlashCommandBuilder()
     .setName('profil')
@@ -37,10 +39,19 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('additem')
-    .setDescription('Ajouter un item')
-    .addStringOption(o => o.setName('nom').setRequired(true))
-    .addIntegerOption(o => o.setName('prix').setRequired(true))
-    .addStringOption(o => o.setName('give').setRequired(true))
+    .setDescription('Ajouter un item au shop')
+    .addStringOption(o =>
+      o.setName('nom')
+        .setDescription('Nom de l’item')
+        .setRequired(true))
+    .addIntegerOption(o =>
+      o.setName('prix')
+        .setDescription('Prix de l’item')
+        .setRequired(true))
+    .addStringOption(o =>
+      o.setName('give')
+        .setDescription('Commande Minecraft (ex: give @p diamond 1)')
+        .setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   new SlashCommandBuilder()
@@ -48,17 +59,6 @@ const commands = [
     .setDescription('Reset le shop')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
-
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-
-client.once('ready', async () => {
-  console.log(`Connecté en tant que ${client.user.tag}`);
-
-  await rest.put(
-    Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-    { body: commands }
-  );
-});
 
 // ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction => {

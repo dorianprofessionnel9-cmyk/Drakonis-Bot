@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 // ===== CONFIG =====
-const SHOP_CHANNEL_ID = "1493185112827756695";
+const SHOP_CHANNEL_ID = "1494360495577108600";
 const DRAGON_CHANNEL_ID = "1494336961601863831";
 const GUILD_ID = "1480204997613457541";
 // ==================

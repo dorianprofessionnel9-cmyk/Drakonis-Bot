@@ -67,7 +67,6 @@ client.on('interactionCreate', async interaction => {
 
     // ===== PROFIL =====
     if (interaction.isChatInputCommand() && interaction.commandName === "profil") {
-
       const guild = interaction.guild;
       const user = interaction.user;
 
@@ -88,46 +87,40 @@ client.on('interactionCreate', async interaction => {
 
       if (!money[user.id]) money[user.id] = 200;
 
-      await channel.send({
-        content: `👋 Bienvenue ${user.username}\n💰 Argent : ${money[user.id]}`
-      });
-
+      await channel.send(`👋 Bienvenue ${user.username}\n💰 Argent : ${money[user.id]}`);
       await interaction.reply({ content: "✅ Salon créé !", ephemeral: true });
     }
 
     // ===== SHOP =====
     if (interaction.isChatInputCommand() && interaction.commandName === "shop") {
 
-  if (interaction.channel.id !== SHOP_CHANNEL_ID) {
-    return interaction.reply({
-      content: "❌ Va dans le salon shop !",
-      ephemeral: true
-    });
-  }
+      if (interaction.channel.id !== SHOP_CHANNEL_ID) {
+        return interaction.reply({ content: "❌ Va dans le salon shop !", ephemeral: true });
+      }
 
-  const embed = new EmbedBuilder()
-    .setTitle("🛒 Shop")
-    .setDescription(shopItems.length > 0 ? "Choisis un item" : "❌ Aucun item dans le shop")
-    .setColor(0x00ffcc);
+      const embed = new EmbedBuilder()
+        .setTitle("🛒 Shop")
+        .setDescription(shopItems.length > 0 ? "Choisis un item" : "❌ Aucun item")
+        .setColor(0x00ffcc);
 
-  const row = new ActionRowBuilder();
+      const row = new ActionRowBuilder();
 
-  shopItems.forEach((item, index) => {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId("buy_" + index)
-        .setLabel(`${item.nom} (${item.prix})`)
-        .setStyle(ButtonStyle.Primary)
-    );
-  });
+      shopItems.forEach((item, index) => {
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId("buy_" + index)
+            .setLabel(`${item.nom} (${item.prix})`)
+            .setStyle(ButtonStyle.Primary)
+        );
+      });
 
-  await interaction.reply({
-    embeds: [embed],
-    components: shopItems.length > 0 ? [row] : []
-  });
-}
+      await interaction.reply({
+        embeds: [embed],
+        components: shopItems.length > 0 ? [row] : []
+      });
+    }
 
-    // ===== ADD ITEM ADMIN =====
+    // ===== ADD ITEM =====
     if (interaction.isChatInputCommand() && interaction.commandName === "additem") {
 
       const nom = interaction.options.getString('nom');
@@ -138,13 +131,6 @@ client.on('interactionCreate', async interaction => {
       saveData();
 
       await interaction.reply("✅ Item ajouté !");
-    }
-
-    // ===== CLEAR SHOP =====
-    if (interaction.isChatInputCommand() && interaction.commandName === "clearshop") {
-      shopItems = [];
-      saveData();
-      await interaction.reply("🧹 Shop vidé !");
     }
 
     // ===== ACHAT =====
@@ -162,10 +148,31 @@ client.on('interactionCreate', async interaction => {
 
         if (money[user] >= item.prix) {
 
-  money[user] -= item.prix;
-  saveData();
+          money[user] -= item.prix;
+          saveData();
 
-  const command = "/" + item.give.replace("@p", username);
+          const command = "/" + item.give.replace("@p", username);
+
+          const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+          if (logChannel) {
+            logChannel.send(`🧾 ${username} a acheté ${item.nom}\n💰 ${item.prix}\n📦 ${command}`);
+          }
+
+          await interaction.reply({
+            content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
+            ephemeral: true
+          });
+
+        } else {
+          await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error(err);
+  }
+});
 
   // 🐉 LOG DISCORD
   const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);

@@ -13,6 +13,7 @@ const client = new Client({
 const SHOP_CHANNEL_ID = "1494360495577108600";
 const DRAGON_CHANNEL_ID = "1494336961601863831";
 const GUILD_ID = "1480204997613457541";
+const LOG_CHANNEL_ID = "1494371990113353978";
 // ==================
 
 let money = {};
@@ -160,6 +161,26 @@ client.on('interactionCreate', async interaction => {
         const item = shopItems[index];
 
         if (money[user] >= item.prix) {
+
+  money[user] -= item.prix;
+  saveData();
+
+  const command = "/" + item.give.replace("@p", username);
+
+  // 🐉 LOG DISCORD
+  const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+  if (logChannel) {
+    logChannel.send(
+      `🧾 ${username} a acheté ${item.nom}\n💰 Prix : ${item.prix}\n💼 Restant : ${money[user]}\n📦 ${command}`
+    );
+  }
+
+  await interaction.reply({
+    content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
+    ephemeral: true
+  });
+
+}
 
           money[user] -= item.prix;
           saveData();

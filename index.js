@@ -136,43 +136,43 @@ client.on('interactionCreate', async interaction => {
     // ===== ACHAT =====
     if (interaction.isButton()) {
 
-      const user = interaction.user.id;
-      const username = interaction.user.username;
+  await interaction.deferReply({ ephemeral: true }); // 🔥 IMPORTANT
 
-      if (!money[user]) money[user] = 200;
+  const user = interaction.user.id;
+  const username = interaction.user.username;
 
-      if (interaction.customId.startsWith("buy_")) {
+  if (!money[user]) money[user] = 200;
 
-        const index = interaction.customId.split("_")[1];
-        const item = shopItems[index];
+  if (interaction.customId.startsWith("buy_")) {
 
-        if (money[user] >= item.prix) {
+    const index = interaction.customId.split("_")[1];
+    const item = shopItems[index];
 
-          money[user] -= item.prix;
-          saveData();
-
-          const command = "/" + item.give.replace("@p", username);
-
-          const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-          if (logChannel) {
-            logChannel.send(`🧾 ${username} a acheté ${item.nom}\n💰 ${item.prix}\n📦 ${command}`);
-          }
-
-          await interaction.reply({
-            content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`,
-            ephemeral: true
-          });
-
-        } else {
-          await interaction.reply({ content: "❌ Pas assez d'argent", ephemeral: true });
-        }
-      }
+    if (!item) {
+      return interaction.editReply({ content: "❌ Item introuvable" });
     }
 
-  } catch (err) {
-    console.error(err);
+    if (money[user] >= item.prix) {
+
+      money[user] -= item.prix;
+      saveData();
+
+      const command = "/" + item.give.replace("@p", username);
+
+      const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+      if (logChannel) {
+        logChannel.send(`🧾 ${username} a acheté ${item.nom}\n💰 ${item.prix}\n📦 ${command}`);
+      }
+
+      await interaction.editReply({
+        content: `✅ Achat ${item.nom} ! Argent restant: ${money[user]}`
+      });
+
+    } else {
+      await interaction.editReply({ content: "❌ Pas assez d'argent" });
+    }
   }
-});
+}
 
   // 🐉 LOG DISCORD
   const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);

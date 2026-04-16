@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -13,8 +13,18 @@ client.on('messageCreate', (message) => {
 
   if (message.content.includes("[DRAGON]")) {
     const channel = client.channels.cache.get("1494336961601863831");
+
     if (channel) {
-      channel.send("@everyone 🐉 " + message.content);
+      const embed = new EmbedBuilder()
+        .setTitle("🐉 Alerte Dragon")
+        .setDescription(message.content)
+        .setColor(0x8B0000)
+        .setFooter({ text: "Archipel de Berk" });
+
+      channel.send({
+        content: "@everyone",
+        embeds: [embed]
+      });
     }
   }
 });

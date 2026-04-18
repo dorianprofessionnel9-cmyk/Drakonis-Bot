@@ -152,7 +152,14 @@ new SlashCommandBuilder().setName('leaderboard').setDescription('Classement arge
 
 new SlashCommandBuilder()
 .setName('link')
-.setDescription('Lier ton compte Minecraft'),
+.setDescription('Obtenir un code de liaison'),
+
+new SlashCommandBuilder()
+.setName('validatelink')
+.setDescription('Valider un joueur')
+.addStringOption(o=>o.setName('code').setDescription('Code').setRequired(true))
+.addStringOption(o=>o.setName('pseudo').setDescription('Pseudo MC').setRequired(true))
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true)),
 }
 
 // ===== INTERACTIONS =====
@@ -294,20 +301,68 @@ const top=Object.entries(money)
 
 return interaction.reply(top||"vide");
 }
+
 if(interaction.commandName==="link"){
 
-const row = new ActionRowBuilder().addComponents(
-new ButtonBuilder()
-.setCustomId("generate_code")
-.setLabel("🔗 Générer code")
-.setStyle(ButtonStyle.Primary)
-);
+const code = Math.random().toString(36).substring(2,8).toUpperCase();
+
+linkCodes[code] = {
+user: interaction.user.id,
+created: Date.now()
+};
+
+save();
 
 return interaction.reply({
-content:"Clique pour générer ton code",
-components:[row],
+content:`🔑 Ton code : **${code}**
+
+📩 Envoie dans ton ticket :
+Pseudo MC : TON_PSEUDO
+Code : ${code}`,
 ephemeral:true
 });
+if(interaction.commandName==="validatelink"){
+
+if(!isStaff(interaction.member))
+return interaction.reply("❌ Pas la permission");
+
+const code = interaction.options.getString('code');
+const pseudo = interaction.options.getString('pseudo');
+const userTarget = interaction.options.getUser('user');
+
+// Vérif code
+if(!linkCodes[code])
+return interaction.reply("❌ Code invalide");
+
+// Expiration 5 min
+if(Date.now() - linkCodes[code].created > 300000){
+delete linkCodes[code];
+save();
+return interaction.reply("❌ Code expiré");
+}
+
+// LINK
+link[userTarget.id] = pseudo;
+
+// supprimer code
+delete linkCodes[code];
+
+save();
+
+// 🎯 AJOUT ROLE (MODIFIE L'ID)
+const ROLE_ID = "ID_ROLE_ACCES";
+
+try{
+const member = await interaction.guild.members.fetch(userTarget.id);
+await member.roles.add(ROLE_ID);
+}catch(e){}
+
+// LOG
+log("🔗 Link",`${pseudo} → ${userTarget.username}`);
+
+return interaction.reply(`✅ ${pseudo} lié à ${userTarget.username}`);
+}
+
 }
 
 // ===== BUTTONS =====

@@ -10,39 +10,43 @@ const client = new Client({
 });
 
 // ===== CONFIG =====
-const GUILD_ID = "TON_GUILD_ID";
-const VIP_ROLE_ID = "TON_ROLE_VIP";
-const ADMIN_CHANNEL_ID = "TON_SALON_ADMIN";
-const ADMIN_ROLE_ID = "TON_ROLE_ADMIN";
-const MOD_ROLE_ID = "TON_ROLE_MODO";
+const GUILD_ID = "1480204997613457541";
+const VIP_ROLE_ID = "1494408592441475234";
+const ADMIN_CHANNEL_ID = "1482739710617981059";
+const ADMIN_ROLE_ID = "1480214844677554176";
+const MOD_ROLE_ID = "1482081844466946160";
 
 // ===== DATA =====
-function load(file){ try{return JSON.parse(fs.readFileSync(file))}catch{return {}} }
+function load(file){
+  try { return JSON.parse(fs.readFileSync(file)); }
+  catch { return {}; }
+}
 
 let money = load('money.json');
-let rep = load('rep.json');
-let kills = load('kills.json');
 let shop = load('shop.json');
 let mailbox = load('mailbox.json');
 let vip = load('vip.json');
 let teams = load('teams.json');
 let wars = load('wars.json');
+let kills = load('kills.json');
+let rep = load('rep.json');
 
+// ===== SAVE =====
 function save(){
 fs.writeFileSync('money.json', JSON.stringify(money,null,2));
-fs.writeFileSync('rep.json', JSON.stringify(rep,null,2));
-fs.writeFileSync('kills.json', JSON.stringify(kills,null,2));
 fs.writeFileSync('shop.json', JSON.stringify(shop,null,2));
 fs.writeFileSync('mailbox.json', JSON.stringify(mailbox,null,2));
 fs.writeFileSync('vip.json', JSON.stringify(vip,null,2));
 fs.writeFileSync('teams.json', JSON.stringify(teams,null,2));
 fs.writeFileSync('wars.json', JSON.stringify(wars,null,2));
+fs.writeFileSync('kills.json', JSON.stringify(kills,null,2));
+fs.writeFileSync('rep.json', JSON.stringify(rep,null,2));
 }
 
 function safe(u){
 if(!money[u]) money[u]=0;
-if(!rep[u]) rep[u]=0;
 if(!kills[u]) kills[u]=0;
+if(!rep[u]) rep[u]=0;
 if(!mailbox[u]) mailbox[u]=[];
 }
 
@@ -58,54 +62,54 @@ new SlashCommandBuilder().setName('shop').setDescription('Voir le shop'),
 new SlashCommandBuilder()
 .setName('additem')
 .setDescription('Ajouter un item')
-.addStringOption(o=>o.setName('nom').setDescription('Nom de l’item').setRequired(true))
-.addIntegerOption(o=>o.setName('prix').setDescription('Prix de l’item').setRequired(true))
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-new SlashCommandBuilder().setName('leaderboard').setDescription('Classement des joueurs'),
+new SlashCommandBuilder().setName('leaderboard').setDescription('Top joueurs'),
 
 new SlashCommandBuilder().setName('mail').setDescription('Voir tes messages'),
 
 new SlashCommandBuilder()
 .setName('sendmail')
 .setDescription('Envoyer un message')
-.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
 .addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('vip')
-.setDescription('Donner le VIP')
-.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
+.setDescription('Donner VIP')
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
 new SlashCommandBuilder()
 .setName('appeladmin')
 .setDescription('Signaler un problème')
-.addStringOption(o=>o.setName('probleme').setDescription('Explique ton problème').setRequired(true)),
+.addStringOption(o=>o.setName('probleme').setDescription('Problème').setRequired(true)),
 
 // TEAM
 new SlashCommandBuilder()
 .setName('createteam')
 .setDescription('Créer une team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom de la team').setRequired(true)),
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('jointeam')
 .setDescription('Rejoindre une team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom de la team').setRequired(true)),
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
 
-new SlashCommandBuilder().setName('leaveteam').setDescription('Quitter ta team'),
+new SlashCommandBuilder().setName('leaveteam').setDescription('Quitter team'),
 new SlashCommandBuilder().setName('teaminfo').setDescription('Voir ta team'),
 new SlashCommandBuilder().setName('deleteteam').setDescription('Supprimer ta team'),
 
-new SlashCommandBuilder().setName('teamleaderboard').setDescription('Classement des teams'),
+new SlashCommandBuilder().setName('teamleaderboard').setDescription('Top teams'),
 
 new SlashCommandBuilder()
 .setName('guerre')
-.setDescription('Déclarer une guerre')
+.setDescription('Déclarer guerre')
 .addStringOption(o=>o.setName('team').setDescription('Team cible').setRequired(true)),
 
-new SlashCommandBuilder().setName('guerres').setDescription('Voir les guerres')
+new SlashCommandBuilder().setName('guerres').setDescription('Voir guerres')
 
 ];
 
@@ -123,10 +127,10 @@ if(interaction.commandName==="kills") return interaction.reply(`⚔️ ${kills[u
 
 // DAILY
 if(interaction.commandName==="daily"){
-money[user]+=200;
-rep[user]+=5;
+let reward = vip[user] ? 400 : 200;
+money[user]+=reward;
 save();
-return interaction.reply("🎁 +200");
+return interaction.reply(`🎁 +${reward}`);
 }
 
 // SHOP
@@ -144,7 +148,7 @@ const n=interaction.options.getString('nom');
 const p=interaction.options.getInteger('prix');
 shop[n]=p;
 save();
-return interaction.reply("✅ Item ajouté");
+return interaction.reply("✅ ajouté");
 }
 
 // LEADERBOARD
@@ -202,14 +206,6 @@ save();
 return interaction.reply("✅ rejoint");
 }
 
-if(interaction.commandName==="leaveteam"){
-for(let t in teams){
-teams[t].membres=teams[t].membres.filter(id=>id!==user);
-}
-save();
-return interaction.reply("🚪 quitté");
-}
-
 if(interaction.commandName==="teaminfo"){
 for(let t in teams){
 if(teams[t].membres.includes(user))
@@ -256,13 +252,11 @@ return interaction.reply(msg);
 const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
 
 client.once('clientReady', async ()=>{
-try{
 await rest.put(
 Routes.applicationGuildCommands(client.user.id,GUILD_ID),
 {body:commands.map(c=>c.toJSON())}
 );
-console.log("✅ COMMANDES SYNC");
-}catch(e){console.error(e);}
+console.log("✅ COMMANDES OK");
 });
 
 client.login(process.env.TOKEN);

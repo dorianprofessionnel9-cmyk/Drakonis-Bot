@@ -28,6 +28,7 @@ let mailbox = load('mailbox.json');
 let wars = load('wars.json');
 let link = load('link.json');
 let linkCodes = load('linkcodes.json');
+let bank = load('bank.json');
 
 // ===== SAVE =====
 function save(){
@@ -39,10 +40,12 @@ fs.writeFileSync('mailbox.json',JSON.stringify(mailbox,null,2));
 fs.writeFileSync('wars.json',JSON.stringify(wars,null,2));
 fs.writeFileSync('link.json',JSON.stringify(link,null,2));
 fs.writeFileSync('linkcodes.json',JSON.stringify(linkCodes,null,2));
+fs.writeFileSync('bank.json',JSON.stringify(bank,null,2));
 }
 
 function safe(u){
 if(!money[u]) money[u]=0;
+if(!bank[u]) bank[u]=0;
 if(!mailbox[u]) mailbox[u]=[];
 }
 
@@ -58,164 +61,216 @@ if(!ch) return;
 ch.send({embeds:[new EmbedBuilder().setTitle(title).setDescription(desc)]});
 }
 
-// ===== SHOP PAGE =====
-function shopPage(cat,page){
-const items = Object.entries(shop[cat] || {});
-const perPage = 5;
-const start = page*perPage;
-const current = items.slice(start,start+perPage);
-
-const row = new ActionRowBuilder();
-const nav = new ActionRowBuilder();
-
-current.forEach(([name,price])=>{
-row.addComponents(
-new ButtonBuilder()
-.setCustomId(`buy_${cat}_${name}`)
-.setLabel(`${name} (${price})`)
-.setStyle(ButtonStyle.Primary)
-);
-});
-
-nav.addComponents(
-new ButtonBuilder().setCustomId(`prev_${cat}_${page}`).setLabel("◀️").setStyle(ButtonStyle.Secondary).setDisabled(page===0),
-new ButtonBuilder().setCustomId(`next_${cat}_${page}`).setLabel("▶️").setStyle(ButtonStyle.Secondary).setDisabled(start+perPage>=items.length),
-new ButtonBuilder().setCustomId("back").setLabel("⬅️").setStyle(ButtonStyle.Danger)
-);
-
-return {content:`🛒 ${cat} (page ${page+1})`,components:[row,nav]};
-}
-
 // ===== COMMANDES =====
 const commands = [
 
 new SlashCommandBuilder().setName('money').setDescription('Voir ton argent'),
+new SlashCommandBuilder().setName('daily').setDescription('Récompense quotidienne'),
+new SlashCommandBuilder().setName('bank').setDescription('Banque'),
 
 new SlashCommandBuilder()
 .setName('pay')
 .setDescription('Envoyer de l’argent')
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+.addUserOption(o=>o.setName('user').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('addmoney')
-.setDescription('Ajouter argent (admin)')
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+.setDescription('Admin add')
+.addUserOption(o=>o.setName('user').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('removemoney')
-.setDescription('Retirer argent (admin)')
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+.setDescription('Admin remove')
+.addUserOption(o=>o.setName('user').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setRequired(true)),
 
-new SlashCommandBuilder().setName('shop').setDescription('Ouvrir le shop'),
+new SlashCommandBuilder()
+.setName('appeladmin')
+.setDescription('Problème')
+.addStringOption(o=>o.setName('msg').setRequired(true)),
+
+new SlashCommandBuilder().setName('shop').setDescription('Shop'),
 
 new SlashCommandBuilder()
 .setName('additem')
-.setDescription('Ajouter item au shop')
-.addStringOption(o=>o.setName('categorie').setDescription('Catégorie').setRequired(true))
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
-.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true)),
+.addStringOption(o=>o.setName('categorie').setRequired(true))
+.addStringOption(o=>o.setName('nom').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setRequired(true)),
+
+new SlashCommandBuilder().setName('leaderboard').setDescription('Top argent'),
+
+new SlashCommandBuilder().setName('teaminfo').setDescription('Info team'),
+new SlashCommandBuilder().setName('createteam')
+.addStringOption(o=>o.setName('nom').setRequired(true))
+.addStringOption(o=>o.setName('objectif').setRequired(true))
+.addStringOption(o=>o.setName('base')),
+
+new SlashCommandBuilder().setName('deleteteam'),
 
 new SlashCommandBuilder()
-.setName('vip')
-.setDescription('Donner VIP')
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true)),
+.setName('guerre')
+.addStringOption(o=>o.setName('team').setRequired(true)),
+
+new SlashCommandBuilder().setName('acceptguerre'),
+new SlashCommandBuilder().setName('leaderboardguerre'),
 
 new SlashCommandBuilder()
-.setName('link')
-.setDescription('Obtenir un code de liaison'),
+.setName('sendmail')
+.addUserOption(o=>o.setName('user').setRequired(true))
+.addStringOption(o=>o.setName('msg').setRequired(true)),
 
+new SlashCommandBuilder().setName('mail'),
+
+new SlashCommandBuilder().setName('link'),
 new SlashCommandBuilder()
 .setName('validatelink')
-.setDescription('Valider un joueur')
-.addStringOption(o=>o.setName('code').setDescription('Code').setRequired(true))
-.addStringOption(o=>o.setName('pseudo').setDescription('Pseudo MC').setRequired(true))
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addStringOption(o=>o.setName('code').setRequired(true))
+.addStringOption(o=>o.setName('pseudo').setRequired(true))
+.addUserOption(o=>o.setName('user').setRequired(true))
 
 ];
 
-// ===== INTERACTIONS =====
+// ===== INTERACTION =====
 client.on('interactionCreate', async interaction => {
 
 const user = interaction.user.id;
 safe(user);
 
-// ===== COMMANDES =====
 if(interaction.isChatInputCommand()){
 
+// MONEY
 if(interaction.commandName==="money")
 return interaction.reply(`💰 ${money[user]}`);
 
+// DAILY
+if(interaction.commandName==="daily"){
+let gain = vip[user] ? 400 : 200;
+money[user]+=gain; save();
+return interaction.reply(`🎁 +${gain}`);
+}
+
+// BANK
+if(interaction.commandName==="bank"){
+const row = new ActionRowBuilder().addComponents(
+new ButtonBuilder().setCustomId("dep").setLabel("Déposer").setStyle(ButtonStyle.Success),
+new ButtonBuilder().setCustomId("with").setLabel("Retirer").setStyle(ButtonStyle.Danger)
+);
+return interaction.reply({content:"🏦 Banque",components:[row]});
+}
+
+// PAY
 if(interaction.commandName==="pay"){
-const t = interaction.options.getUser('user');
-const a = interaction.options.getInteger('montant');
-if(a<=0 || money[user]<a) return interaction.reply("❌");
+let t=interaction.options.getUser('user');
+let a=interaction.options.getInteger('montant');
+if(money[user]<a) return interaction.reply("❌");
 money[user]-=a;
 money[t.id]=(money[t.id]||0)+a;
 save();
 return interaction.reply("💸 envoyé");
 }
 
+// ADMIN MONEY
 if(["addmoney","removemoney"].includes(interaction.commandName)){
 if(!isStaff(interaction.member)) return interaction.reply("❌");
-const t = interaction.options.getUser('user');
-const a = interaction.options.getInteger('montant');
-if(interaction.commandName==="addmoney") money[t.id]=(money[t.id]||0)+a;
-if(interaction.commandName==="removemoney") money[t.id]=Math.max(0,(money[t.id]||0)-a);
+let t=interaction.options.getUser('user');
+let a=interaction.options.getInteger('montant');
+if(interaction.commandName==="addmoney") money[t.id]+=a;
+if(interaction.commandName==="removemoney") money[t.id]-=a;
 save();
 return interaction.reply("OK");
 }
 
-// ===== LINK =====
+// APPEL ADMIN
+if(interaction.commandName==="appeladmin"){
+client.channels.cache.get(LOG_CHANNEL_ID)?.send(
+`🚨 ${interaction.user.username}\n${interaction.options.getString('msg')}`
+);
+return interaction.reply({content:"envoyé",ephemeral:true});
+}
+
+// LINK
 if(interaction.commandName==="link"){
-const code = Math.random().toString(36).substring(2,8).toUpperCase();
-linkCodes[code] = { user: interaction.user.id, created: Date.now() };
+let code=Math.random().toString(36).substring(2,8).toUpperCase();
+linkCodes[code]={user,created:Date.now()};
 save();
-
-return interaction.reply({
-content:`🔑 Ton code : **${code}**
-
-📩 Envoie dans ton ticket :
-Pseudo MC :
-Code : ${code}`,
-ephemeral:true
-});
+return interaction.reply({content:`Code: ${code}`,ephemeral:true});
 }
 
-// ===== VALIDATE =====
+// VALIDATE
 if(interaction.commandName==="validatelink"){
-if(!isStaff(interaction.member)) return interaction.reply("❌");
+let code=interaction.options.getString('code');
+let pseudo=interaction.options.getString('pseudo');
+let u=interaction.options.getUser('user');
 
-const code = interaction.options.getString('code');
-const pseudo = interaction.options.getString('pseudo');
-const userTarget = interaction.options.getUser('user');
+if(!linkCodes[code]) return interaction.reply("❌");
 
-if(!linkCodes[code]) return interaction.reply("❌ code invalide");
-
-if(Date.now() - linkCodes[code].created > 300000){
-delete linkCodes[code]; save();
-return interaction.reply("❌ code expiré");
-}
-
-link[userTarget.id] = pseudo;
+link[u.id]=pseudo;
 delete linkCodes[code];
 save();
 
-return interaction.reply(`✅ ${pseudo} lié`);
+return interaction.reply("✅ lié");
+}
+
+// TEAM
+if(interaction.commandName==="createteam"){
+teams[user]={nom:interaction.options.getString('nom'),chef:user,objectif:interaction.options.getString('objectif'),base:interaction.options.getString('base'),membres:[user]};
+save();
+return interaction.reply("créée");
+}
+
+if(interaction.commandName==="teaminfo"){
+let t=teams[user];
+if(!t) return interaction.reply("❌");
+return interaction.reply(`${t.nom} | ${t.objectif} | ${t.base}`);
+}
+
+// GUERRE
+if(interaction.commandName==="guerre"){
+let target=interaction.options.getString('team');
+let my=teams[user];
+let enemy=Object.values(teams).find(t=>t.nom===target);
+if(!my||!enemy) return interaction.reply("❌");
+
+wars[my.nom+"_"+enemy.nom]={attacker:my.nom,defender:enemy.nom,accepted:false};
+save();
+return interaction.reply("⚔️");
+}
+
+if(interaction.commandName==="acceptguerre"){
+let my=teams[user];
+let war=Object.values(wars).find(w=>w.defender===my.nom&&!w.accepted);
+if(!war) return interaction.reply("❌");
+war.accepted=true;
+save();
+return interaction.reply("🔥");
+}
+
+// LEADERBOARD
+if(interaction.commandName==="leaderboard"){
+let top=Object.entries(money).sort((a,b)=>b[1]-a[1]).slice(0,10)
+.map(([id,v],i)=>`${i+1}. <@${id}> - ${v}`).join("\n");
+return interaction.reply(top||"vide");
 }
 
 }
 
-// ===== BUTTONS =====
+// BUTTONS
 if(interaction.isButton()){
-// (ton code boutons reste identique)
+if(interaction.customId==="dep"){
+money[user]-=100; bank[user]+=100; save();
+return interaction.reply({content:"💰 déposé",ephemeral:true});
+}
+if(interaction.customId==="with"){
+bank[user]-=100; money[user]+=100; save();
+return interaction.reply({content:"💸 retiré",ephemeral:true});
+}
 }
 
 });
 
-// ===== REGISTER =====
+// REGISTER
 const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
 
 client.once('clientReady',async()=>{

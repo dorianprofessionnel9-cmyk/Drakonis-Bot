@@ -160,7 +160,7 @@ new SlashCommandBuilder()
 .addStringOption(o=>o.setName('code').setDescription('Code').setRequired(true))
 .addStringOption(o=>o.setName('pseudo').setDescription('Pseudo MC').setRequired(true))
 .addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true)),
-}
+};
 
 // ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction => {
@@ -321,6 +321,9 @@ Pseudo MC : TON_PSEUDO
 Code : ${code}`,
 ephemeral:true
 });
+}
+
+// ✅ ICI EN DEHORS
 if(interaction.commandName==="validatelink"){
 
 if(!isStaff(interaction.member))

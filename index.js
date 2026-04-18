@@ -21,6 +21,7 @@ const VIP_ROLE_ID = "1494408592441475234";
 function load(f){ try{return JSON.parse(fs.readFileSync(f));}catch{return {}} }
 
 let money = load('money.json');
+let bank = load('bank.json');
 let shop = load('shop.json');
 let vip = load('vip.json');
 let teams = load('teams.json');
@@ -28,11 +29,11 @@ let mailbox = load('mailbox.json');
 let wars = load('wars.json');
 let link = load('link.json');
 let linkCodes = load('linkcodes.json');
-let bank = load('bank.json');
 
 // ===== SAVE =====
 function save(){
 fs.writeFileSync('money.json',JSON.stringify(money,null,2));
+fs.writeFileSync('bank.json',JSON.stringify(bank,null,2));
 fs.writeFileSync('shop.json',JSON.stringify(shop,null,2));
 fs.writeFileSync('vip.json',JSON.stringify(vip,null,2));
 fs.writeFileSync('teams.json',JSON.stringify(teams,null,2));
@@ -40,7 +41,6 @@ fs.writeFileSync('mailbox.json',JSON.stringify(mailbox,null,2));
 fs.writeFileSync('wars.json',JSON.stringify(wars,null,2));
 fs.writeFileSync('link.json',JSON.stringify(link,null,2));
 fs.writeFileSync('linkcodes.json',JSON.stringify(linkCodes,null,2));
-fs.writeFileSync('bank.json',JSON.stringify(bank,null,2));
 }
 
 function safe(u){
@@ -64,71 +64,78 @@ ch.send({embeds:[new EmbedBuilder().setTitle(title).setDescription(desc)]});
 // ===== COMMANDES =====
 const commands = [
 
-new SlashCommandBuilder().setName('money').setDescription('Voir ton argent'),
+new SlashCommandBuilder().setName('money').setDescription('Voir argent'),
 new SlashCommandBuilder().setName('daily').setDescription('Récompense quotidienne'),
 new SlashCommandBuilder().setName('bank').setDescription('Banque'),
 
 new SlashCommandBuilder()
 .setName('pay')
-.setDescription('Envoyer de l’argent')
-.addUserOption(o=>o.setName('user').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setRequired(true)),
+.setDescription('Envoyer argent')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('addmoney')
 .setDescription('Admin add')
-.addUserOption(o=>o.setName('user').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setRequired(true)),
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('removemoney')
 .setDescription('Admin remove')
-.addUserOption(o=>o.setName('user').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setRequired(true)),
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('appeladmin')
-.setDescription('Problème')
-.addStringOption(o=>o.setName('msg').setRequired(true)),
+.setDescription('Signaler problème')
+.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
 
 new SlashCommandBuilder().setName('shop').setDescription('Shop'),
 
 new SlashCommandBuilder()
 .setName('additem')
-.addStringOption(o=>o.setName('categorie').setRequired(true))
-.addStringOption(o=>o.setName('nom').setRequired(true))
-.addIntegerOption(o=>o.setName('prix').setRequired(true)),
+.setDescription('Ajouter item')
+.addStringOption(o=>o.setName('categorie').setDescription('Catégorie').setRequired(true))
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true)),
 
 new SlashCommandBuilder().setName('leaderboard').setDescription('Top argent'),
 
-new SlashCommandBuilder().setName('teaminfo').setDescription('Info team'),
-new SlashCommandBuilder().setName('createteam')
-.addStringOption(o=>o.setName('nom').setRequired(true))
-.addStringOption(o=>o.setName('objectif').setRequired(true))
-.addStringOption(o=>o.setName('base')),
+new SlashCommandBuilder()
+.setName('createteam')
+.setDescription('Créer team')
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addStringOption(o=>o.setName('objectif').setDescription('Objectif').setRequired(true))
+.addStringOption(o=>o.setName('base').setDescription('Base')),
 
-new SlashCommandBuilder().setName('deleteteam'),
+new SlashCommandBuilder().setName('teaminfo').setDescription('Info team'),
+new SlashCommandBuilder().setName('deleteteam').setDescription('Delete team'),
 
 new SlashCommandBuilder()
 .setName('guerre')
-.addStringOption(o=>o.setName('team').setRequired(true)),
+.setDescription('Déclarer guerre')
+.addStringOption(o=>o.setName('team').setDescription('Nom').setRequired(true)),
 
-new SlashCommandBuilder().setName('acceptguerre'),
-new SlashCommandBuilder().setName('leaderboardguerre'),
+new SlashCommandBuilder().setName('acceptguerre').setDescription('Accepter guerre'),
+new SlashCommandBuilder().setName('leaderboardguerre').setDescription('Top guerre'),
 
 new SlashCommandBuilder()
 .setName('sendmail')
-.addUserOption(o=>o.setName('user').setRequired(true))
-.addStringOption(o=>o.setName('msg').setRequired(true)),
+.setDescription('Envoyer mail')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
 
-new SlashCommandBuilder().setName('mail'),
+new SlashCommandBuilder().setName('mail').setDescription('Voir mail'),
 
-new SlashCommandBuilder().setName('link'),
+new SlashCommandBuilder().setName('link').setDescription('Code link'),
+
 new SlashCommandBuilder()
 .setName('validatelink')
-.addStringOption(o=>o.setName('code').setRequired(true))
-.addStringOption(o=>o.setName('pseudo').setRequired(true))
-.addUserOption(o=>o.setName('user').setRequired(true))
+.setDescription('Valider link')
+.addStringOption(o=>o.setName('code').setDescription('Code').setRequired(true))
+.addStringOption(o=>o.setName('pseudo').setDescription('Pseudo').setRequired(true))
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
 
 ];
 
@@ -140,18 +147,15 @@ safe(user);
 
 if(interaction.isChatInputCommand()){
 
-// MONEY
 if(interaction.commandName==="money")
 return interaction.reply(`💰 ${money[user]}`);
 
-// DAILY
 if(interaction.commandName==="daily"){
-let gain = vip[user] ? 400 : 200;
+let gain = vip[user]?400:200;
 money[user]+=gain; save();
 return interaction.reply(`🎁 +${gain}`);
 }
 
-// BANK
 if(interaction.commandName==="bank"){
 const row = new ActionRowBuilder().addComponents(
 new ButtonBuilder().setCustomId("dep").setLabel("Déposer").setStyle(ButtonStyle.Success),
@@ -160,7 +164,6 @@ new ButtonBuilder().setCustomId("with").setLabel("Retirer").setStyle(ButtonStyle
 return interaction.reply({content:"🏦 Banque",components:[row]});
 }
 
-// PAY
 if(interaction.commandName==="pay"){
 let t=interaction.options.getUser('user');
 let a=interaction.options.getInteger('montant');
@@ -171,7 +174,6 @@ save();
 return interaction.reply("💸 envoyé");
 }
 
-// ADMIN MONEY
 if(["addmoney","removemoney"].includes(interaction.commandName)){
 if(!isStaff(interaction.member)) return interaction.reply("❌");
 let t=interaction.options.getUser('user');
@@ -182,7 +184,6 @@ save();
 return interaction.reply("OK");
 }
 
-// APPEL ADMIN
 if(interaction.commandName==="appeladmin"){
 client.channels.cache.get(LOG_CHANNEL_ID)?.send(
 `🚨 ${interaction.user.username}\n${interaction.options.getString('msg')}`
@@ -198,7 +199,6 @@ save();
 return interaction.reply({content:`Code: ${code}`,ephemeral:true});
 }
 
-// VALIDATE
 if(interaction.commandName==="validatelink"){
 let code=interaction.options.getString('code');
 let pseudo=interaction.options.getString('pseudo');
@@ -213,50 +213,8 @@ save();
 return interaction.reply("✅ lié");
 }
 
-// TEAM
-if(interaction.commandName==="createteam"){
-teams[user]={nom:interaction.options.getString('nom'),chef:user,objectif:interaction.options.getString('objectif'),base:interaction.options.getString('base'),membres:[user]};
-save();
-return interaction.reply("créée");
 }
 
-if(interaction.commandName==="teaminfo"){
-let t=teams[user];
-if(!t) return interaction.reply("❌");
-return interaction.reply(`${t.nom} | ${t.objectif} | ${t.base}`);
-}
-
-// GUERRE
-if(interaction.commandName==="guerre"){
-let target=interaction.options.getString('team');
-let my=teams[user];
-let enemy=Object.values(teams).find(t=>t.nom===target);
-if(!my||!enemy) return interaction.reply("❌");
-
-wars[my.nom+"_"+enemy.nom]={attacker:my.nom,defender:enemy.nom,accepted:false};
-save();
-return interaction.reply("⚔️");
-}
-
-if(interaction.commandName==="acceptguerre"){
-let my=teams[user];
-let war=Object.values(wars).find(w=>w.defender===my.nom&&!w.accepted);
-if(!war) return interaction.reply("❌");
-war.accepted=true;
-save();
-return interaction.reply("🔥");
-}
-
-// LEADERBOARD
-if(interaction.commandName==="leaderboard"){
-let top=Object.entries(money).sort((a,b)=>b[1]-a[1]).slice(0,10)
-.map(([id,v],i)=>`${i+1}. <@${id}> - ${v}`).join("\n");
-return interaction.reply(top||"vide");
-}
-
-}
-
-// BUTTONS
 if(interaction.isButton()){
 if(interaction.customId==="dep"){
 money[user]-=100; bank[user]+=100; save();

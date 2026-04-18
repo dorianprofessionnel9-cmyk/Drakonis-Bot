@@ -62,30 +62,30 @@ new SlashCommandBuilder()
 
 new SlashCommandBuilder()
 .setName('mail')
-.setDescription('Voir tes messages'),
+.setDescription('Voir ta boîte de messages'),
 
 new SlashCommandBuilder()
 .setName('sendmail')
 .setDescription('Envoyer un message')
-.addUserOption(o=>o.setName('user').setRequired(true).setDescription('Utilisateur'))
-.addStringOption(o=>o.setName('msg').setRequired(true).setDescription('Message')),
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
+.addStringOption(o=>o.setName('msg').setDescription('Message à envoyer').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('addmoney')
-.setDescription('Ajouter argent')
-.addUserOption(o=>o.setName('user').setRequired(true))
-.addIntegerOption(o=>o.setName('amount').setRequired(true))
+.setDescription('Ajouter de l’argent')
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
+.addIntegerOption(o=>o.setName('amount').setDescription('Montant').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
 new SlashCommandBuilder()
 .setName('vip')
-.setDescription('Donner VIP')
-.addUserOption(o=>o.setName('user').setRequired(true))
+.setDescription('Donner le VIP')
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
 ];
 
-// ===== INTERACTION =====
+// ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction=>{
 if(!interaction.isChatInputCommand()) return;
 
@@ -113,7 +113,7 @@ const sorted = Object.entries(money)
 .sort((a,b)=>b[1]-a[1])
 .slice(0,10);
 
-let msg="🏆 Top Money\n";
+let msg="🏆 Top Argent\n";
 
 sorted.forEach((u,i)=>{
 msg+=`${i+1}. <@${u[0]}> - ${u[1]}\n`;
@@ -125,7 +125,7 @@ return interaction.reply(msg);
 // MAILBOX
 if(interaction.commandName==="mail"){
 if(mailbox[user].length===0)
-return interaction.reply("📭 Vide");
+return interaction.reply("📭 Boîte vide");
 
 return interaction.reply(mailbox[user].join("\n"));
 }
@@ -140,45 +140,46 @@ if(!mailbox[target]) mailbox[target]=[];
 mailbox[target].push(`📩 ${interaction.user.username}: ${msg}`);
 saveAll();
 
-return interaction.reply("✅ envoyé");
+return interaction.reply("✅ Message envoyé");
 }
 
 // ADD MONEY
 if(interaction.commandName==="addmoney"){
 const target = interaction.options.getUser('user').id;
-const amount = interaction.options.getInteger('amount');
+let amount = interaction.options.getInteger('amount');
 
 safe(target);
 
-// BONUS VIP
-if(vip[target]) amount*=2;
+// BONUS VIP x2
+if(vip[target]) amount *= 2;
 
-money[target]+=amount;
+money[target] += amount;
 
 saveAll();
 
-return interaction.reply("💰 ajouté");
+return interaction.reply(`💰 ${amount} ajouté`);
 }
 
 // VIP
 if(interaction.commandName==="vip"){
 const target = interaction.options.getUser('user');
+
 vip[target.id]=true;
 
 const member = await interaction.guild.members.fetch(target.id);
-member.roles.add(VIP_ROLE_ID);
+await member.roles.add(VIP_ROLE_ID);
 
 saveAll();
 
-return interaction.reply("👑 VIP donné");
+return interaction.reply("👑 VIP attribué");
 }
 
 });
 
-// ===== REGISTER =====
+// ===== REGISTER COMMANDS =====
 const rest = new REST({version:'10'}).setToken(process.env.TOKEN);
 
-client.once('ready', async ()=>{
+client.once('clientReady', async ()=>{
 await rest.put(
 Routes.applicationGuildCommands(client.user.id,GUILD_ID),
 {body:commands}

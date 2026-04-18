@@ -4,8 +4,7 @@ const {
   SlashCommandBuilder, REST, Routes,
   PermissionFlagsBits,
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  EmbedBuilder,
-  ModalBuilder, TextInputBuilder, TextInputStyle
+  EmbedBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -14,7 +13,6 @@ const client = new Client({
 
 // ===== CONFIG =====
 const GUILD_ID = "1480204997613457541";
-
 const LOG_CHANNEL_ID = "1494371990113353978";
 const ADMIN_CHANNEL_ID = "1495023085366022245";
 
@@ -29,10 +27,6 @@ let money=load('money.json');
 let bank=load('bank.json');
 let shop=load('shop.json');
 let vip=load('vip.json');
-let mailbox=load('mailbox.json');
-let teams=load('teams.json');
-let wars=load('wars.json');
-let history=load('history.json');
 
 // ===== SAVE =====
 function save(){
@@ -40,80 +34,78 @@ fs.writeFileSync('money.json',JSON.stringify(money,null,2));
 fs.writeFileSync('bank.json',JSON.stringify(bank,null,2));
 fs.writeFileSync('shop.json',JSON.stringify(shop,null,2));
 fs.writeFileSync('vip.json',JSON.stringify(vip,null,2));
-fs.writeFileSync('mailbox.json',JSON.stringify(mailbox,null,2));
-fs.writeFileSync('teams.json',JSON.stringify(teams,null,2));
-fs.writeFileSync('wars.json',JSON.stringify(wars,null,2));
-fs.writeFileSync('history.json',JSON.stringify(history,null,2));
 }
 
 function safe(u){
 if(!money[u]) money[u]=0;
 if(!bank[u]) bank[u]=0;
-if(!mailbox[u]) mailbox[u]=[];
-}
-
-// ===== PERM =====
-function isStaff(member){
-return member.roles.cache.has(ADMIN_ROLE_ID) || member.roles.cache.has(MOD_ROLE_ID);
 }
 
 // ===== LOG =====
 function log(title,desc){
 const ch=client.channels.cache.get(LOG_CHANNEL_ID);
 if(!ch) return;
-ch.send({embeds:[new EmbedBuilder().setTitle(title).setDescription(desc).setColor(0x00ffcc).setTimestamp()]});
+ch.send({embeds:[new EmbedBuilder().setTitle(title).setDescription(desc).setColor(0x00ffcc)]});
+}
+
+// ===== SHOP FUNCTIONS =====
+function shopCategories(){
+const row = new ActionRowBuilder();
+for(let cat in shop){
+row.addComponents(
+new ButtonBuilder()
+.setCustomId(`cat_${cat}`)
+.setLabel(cat)
+.setStyle(ButtonStyle.Secondary)
+);
+}
+return {content:"📦 Catégories",components:[row]};
+}
+
+function shopPage(cat,page){
+const items = Object.entries(shop[cat]);
+const perPage = 5;
+
+const row = new ActionRowBuilder();
+const nav = new ActionRowBuilder();
+
+const start = page * perPage;
+const current = items.slice(start,start+perPage);
+
+current.forEach(([name,price])=>{
+row.addComponents(
+new ButtonBuilder()
+.setCustomId(`buy_${cat}_${name}`)
+.setLabel(`${name} (${price})`)
+.setStyle(ButtonStyle.Primary)
+);
+});
+
+nav.addComponents(
+new ButtonBuilder().setCustomId(`prev_${cat}_${page}`).setLabel("◀️").setStyle(ButtonStyle.Secondary).setDisabled(page===0),
+new ButtonBuilder().setCustomId(`next_${cat}_${page}`).setLabel("▶️").setStyle(ButtonStyle.Secondary).setDisabled(start+perPage>=items.length),
+new ButtonBuilder().setCustomId("back_cat").setLabel("⬅️").setStyle(ButtonStyle.Danger)
+);
+
+return {content:`🛒 ${cat} (page ${page+1})`,components:[row,nav]};
 }
 
 // ===== COMMANDES =====
 const commands=[
 
 new SlashCommandBuilder().setName('money').setDescription('Voir argent'),
-new SlashCommandBuilder().setName('daily').setDescription('Daily'),
-new SlashCommandBuilder().setName('deposit').setDescription('Déposer').addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
-new SlashCommandBuilder().setName('withdraw').setDescription('Retirer').addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
-new SlashCommandBuilder().setName('bank').setDescription('Ouvrir banque'),
-
-new SlashCommandBuilder().setName('pay').setDescription('Envoyer argent')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
 
 new SlashCommandBuilder().setName('shop').setDescription('Shop'),
-new SlashCommandBuilder().setName('additem').setDescription('Add item')
+
+new SlashCommandBuilder().setName('additem')
+.setDescription('Ajouter item')
+.addStringOption(o=>o.setName('categorie').setDescription('Catégorie').setRequired(true))
 .addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
 .addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true)),
 
-new SlashCommandBuilder().setName('addmoney').setDescription('Admin add')
+new SlashCommandBuilder().setName('vip')
+.setDescription('Donner VIP')
 .addUserOption(o=>o.setName('user').setDescription('User').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
-
-new SlashCommandBuilder().setName('removemoney').setDescription('Admin remove')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
-
-new SlashCommandBuilder().setName('setmoney').setDescription('Admin set')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true))
-.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
-
-new SlashCommandBuilder().setName('resetmoney').setDescription('Admin reset')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true)),
-
-new SlashCommandBuilder().setName('appeladmin').setDescription('Problème')
-.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
-
-new SlashCommandBuilder().setName('vip').setDescription('Donner VIP')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true)),
-
-new SlashCommandBuilder().setName('mail').setDescription('Voir mail'),
-new SlashCommandBuilder().setName('sendmail').setDescription('Envoyer mail')
-.addUserOption(o=>o.setName('user').setDescription('User').setRequired(true))
-.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
-
-new SlashCommandBuilder().setName('createteam').setDescription('Créer')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
-new SlashCommandBuilder().setName('jointeam').setDescription('Join')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
-new SlashCommandBuilder().setName('teaminfo').setDescription('Info'),
-new SlashCommandBuilder().setName('deleteteam').setDescription('Delete'),
 
 ];
 
@@ -123,82 +115,116 @@ client.on('interactionCreate',async interaction=>{
 const user=interaction.user.id;
 safe(user);
 
-// ===== MODALS =====
-if(interaction.isModalSubmit()){
-const amount = parseInt(interaction.fields.getTextInputValue("amount"));
-
-if(isNaN(amount) || amount <= 0)
-return interaction.reply({content:"❌ Montant invalide",ephemeral:true});
-
-if(interaction.customId==="deposit_modal"){
-if(money[user] < amount) return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-money[user]-=amount; bank[user]+=amount; save();
-return interaction.reply({content:`🏦 Déposé ${amount}`,ephemeral:true});
-}
-
-if(interaction.customId==="withdraw_modal"){
-if(bank[user] < amount) return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-bank[user]-=amount; money[user]+=amount; save();
-return interaction.reply({content:`💸 Retiré ${amount}`,ephemeral:true});
-}
-}
-
 // ===== COMMANDES =====
 if(interaction.isChatInputCommand()){
 
-if(interaction.commandName==="money") return interaction.reply(`💰 ${money[user]}`);
+// MONEY
+if(interaction.commandName==="money")
+return interaction.reply(`💰 ${money[user]}`);
 
-if(interaction.commandName==="bank"){
-const row=new ActionRowBuilder().addComponents(
-new ButtonBuilder().setCustomId("bank_deposit").setLabel("➕ Déposer").setStyle(ButtonStyle.Success),
-new ButtonBuilder().setCustomId("bank_withdraw").setLabel("➖ Retirer").setStyle(ButtonStyle.Danger)
-);
-return interaction.reply({content:`🏦 ${money[user]} | ${bank[user]}`,components:[row],ephemeral:true});
+// SHOP
+if(interaction.commandName==="shop")
+return interaction.reply(shopCategories());
+
+// ADD ITEM
+if(interaction.commandName==="additem"){
+
+const cat = interaction.options.getString('categorie');
+const name = interaction.options.getString('nom');
+const price = interaction.options.getInteger('prix');
+
+if(price <= 0)
+return interaction.reply("❌ prix invalide");
+
+if(!shop[cat]) shop[cat] = {};
+
+shop[cat][name] = price;
+
+save();
+
+return interaction.reply(`✅ ${name} ajouté dans ${cat}`);
 }
 
-if(interaction.commandName==="withdraw"){
-let a=interaction.options.getInteger('montant');
-if(a<=0 || bank[user]<a) return interaction.reply("❌");
-bank[user]-=a; money[user]+=a; save();
-return interaction.reply("💸 OK");
-}
+// VIP
+if(interaction.commandName==="vip"){
 
-if(interaction.commandName==="shop"){
-const row=new ActionRowBuilder();
-let i=0;
-for(let item in shop){
-row.addComponents(new ButtonBuilder().setCustomId(`buy_${item}`).setLabel(`${item} (${shop[item]})`).setStyle(ButtonStyle.Primary));
-i++; if(i===5) break;
-}
-return interaction.reply({content:"🛒 Shop",components:[row]});
+const target = interaction.options.getUser('user');
+
+vip[target.id] = true;
+
+const member = await interaction.guild.members.fetch(target.id);
+await member.roles.add(VIP_ROLE_ID);
+
+save();
+
+return interaction.reply(`👑 ${target.username} est VIP`);
 }
 }
 
 // ===== BUTTONS =====
 if(interaction.isButton()){
 
-if(interaction.customId==="bank_deposit"){
-const modal=new ModalBuilder().setCustomId("deposit_modal").setTitle("Déposer");
-const input=new TextInputBuilder().setCustomId("amount").setLabel("Montant").setStyle(TextInputStyle.Short);
-modal.addComponents(new ActionRowBuilder().addComponents(input));
-return interaction.showModal(modal);
+// CAT
+if(interaction.customId.startsWith("cat_")){
+const cat = interaction.customId.replace("cat_","");
+return interaction.update(shopPage(cat,0));
 }
 
-if(interaction.customId==="bank_withdraw"){
-const modal=new ModalBuilder().setCustomId("withdraw_modal").setTitle("Retirer");
-const input=new TextInputBuilder().setCustomId("amount").setLabel("Montant").setStyle(TextInputStyle.Short);
-modal.addComponents(new ActionRowBuilder().addComponents(input));
-return interaction.showModal(modal);
+// NAV
+if(interaction.customId.startsWith("next_")){
+const [_,cat,page]=interaction.customId.split("_");
+return interaction.update(shopPage(cat,parseInt(page)+1));
 }
 
+if(interaction.customId.startsWith("prev_")){
+const [_,cat,page]=interaction.customId.split("_");
+return interaction.update(shopPage(cat,parseInt(page)-1));
+}
+
+if(interaction.customId==="back_cat"){
+return interaction.update(shopCategories());
+}
+
+// BUY → CONFIRM
 if(interaction.customId.startsWith("buy_")){
-let item=interaction.customId.replace("buy_","");
-let price=shop[item];
-if(money[user]<price) return interaction.reply({content:"❌",ephemeral:true});
-money[user]-=price; save();
-log("🧾 Achat",`${interaction.user.username} ${item}`);
-return interaction.reply({content:"✅ achat",ephemeral:true});
+
+const [_,cat,name] = interaction.customId.split("_");
+const price = shop[cat][name];
+
+const row = new ActionRowBuilder().addComponents(
+new ButtonBuilder().setCustomId(`confirm_${cat}_${name}`).setLabel("✅ Confirmer").setStyle(ButtonStyle.Success),
+new ButtonBuilder().setCustomId("cancel_buy").setLabel("❌ Annuler").setStyle(ButtonStyle.Danger)
+);
+
+return interaction.reply({
+content:`⚠️ Acheter ${name} pour ${price} ?`,
+components:[row],
+ephemeral:true
+});
 }
+
+// CONFIRM
+if(interaction.customId.startsWith("confirm_")){
+
+const [_,cat,name] = interaction.customId.split("_");
+const price = shop[cat][name];
+
+if(money[user] < price)
+return interaction.update({content:"❌ pas assez",components:[]});
+
+money[user] -= price;
+save();
+
+log("🧾 Achat",`${interaction.user.username} ${name}`);
+
+return interaction.update({content:`✅ acheté ${name}`,components:[]});
+}
+
+// CANCEL
+if(interaction.customId==="cancel_buy"){
+return interaction.update({content:"❌ annulé",components:[]});
+}
+
 }
 
 });

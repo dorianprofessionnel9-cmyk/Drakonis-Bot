@@ -26,6 +26,8 @@ let vip = load('vip.json');
 let teams = load('teams.json');
 let mailbox = load('mailbox.json');
 let wars = load('wars.json');
+let link = load('link.json');
+let linkCodes = load('linkcodes.json');
 
 // ===== SAVE =====
 function save(){
@@ -35,6 +37,8 @@ fs.writeFileSync('vip.json',JSON.stringify(vip,null,2));
 fs.writeFileSync('teams.json',JSON.stringify(teams,null,2));
 fs.writeFileSync('mailbox.json',JSON.stringify(mailbox,null,2));
 fs.writeFileSync('wars.json',JSON.stringify(wars,null,2));
+fs.writeFileSync('link.json',JSON.stringify(link,null,2));
+fs.writeFileSync('linkcodes.json',JSON.stringify(linkCodes,null,2));
 }
 
 function safe(u){
@@ -146,7 +150,10 @@ new SlashCommandBuilder()
 new SlashCommandBuilder().setName('mail').setDescription('Voir tes mails'),
 new SlashCommandBuilder().setName('leaderboard').setDescription('Classement argent'),
 
-];
+new SlashCommandBuilder()
+.setName('link')
+.setDescription('Lier ton compte Minecraft'),
+}
 
 // ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction => {
@@ -287,7 +294,20 @@ const top=Object.entries(money)
 
 return interaction.reply(top||"vide");
 }
+if(interaction.commandName==="link"){
 
+const row = new ActionRowBuilder().addComponents(
+new ButtonBuilder()
+.setCustomId("generate_code")
+.setLabel("🔗 Générer code")
+.setStyle(ButtonStyle.Primary)
+);
+
+return interaction.reply({
+content:"Clique pour générer ton code",
+components:[row],
+ephemeral:true
+});
 }
 
 // ===== BUTTONS =====
@@ -348,9 +368,22 @@ if(interaction.customId==="cancel"){
 return interaction.update({content:"❌ annulé",components:[]});
 }
 
-}
+if(interaction.customId==="generate_code"){
 
+const code = Math.random().toString(36).substring(2,8).toUpperCase();
+
+linkCodes[code] = {
+user: interaction.user.id,
+created: Date.now()
+};
+
+save();
+
+return interaction.reply({
+content:`🔑 Code : **${code}**\n\nEn jeu : /setlink ${code}`,
+ephemeral:true
 });
+}
 
 // ===== REGISTER =====
 const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
@@ -363,4 +396,49 @@ Routes.applicationGuildCommands(client.user.id,GUILD_ID),
 console.log("BOT READY");
 });
 
-client.login(process.env.TOKEN);
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+const SECRET = "dragon_secure_key"; // change ça
+
+app.post('/link', (req, res) => {
+
+if(req.headers.authorization !== SECRET){
+return res.status(403).json({ error:"forbidden" });
+}
+
+const { code, pseudo } = req.body;
+
+// Vérif code
+if(!linkCodes[code]){
+return res.json({ success:false, msg:"code invalide" });
+}
+
+// Expiration (5 min)
+if(Date.now() - linkCodes[code].created > 300000){
+delete linkCodes[code];
+save();
+return res.json({ success:false, msg:"code expiré" });
+}
+
+// LINK
+const userId = linkCodes[code].user;
+
+link[userId] = pseudo;
+
+// supprimer code
+delete linkCodes[code];
+
+save();
+
+console.log(`✅ LINK : ${pseudo} → ${userId}`);
+
+res.json({ success:true });
+
+});
+
+app.listen(3000, () => console.log("🌐 API ON"));
+
+  client.login(process.env.TOKEN);

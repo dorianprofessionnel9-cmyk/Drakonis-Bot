@@ -1,218 +1,184 @@
 const fs = require('fs');
 const {
-  Client, GatewayIntentBits, EmbedBuilder,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  Client, GatewayIntentBits,
   SlashCommandBuilder, REST, Routes,
-  PermissionFlagsBits,
-  ModalBuilder, TextInputBuilder, TextInputStyle
+  PermissionFlagsBits
 } = require('discord.js');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents: [GatewayIntentBits.Guilds]
 });
 
 // ===== CONFIG =====
-const SHOP_CHANNEL_ID = "1494360495577108600";
-const LOG_CHANNEL_ID = "1494371990113353978";
-const LINK_ROLE_ID = "1494385453145788476";
-const VIP_ROLE_ID = "1494408592441475234";
 const GUILD_ID = "1480204997613457541";
-const DRAGON_CHANNEL_ID = "1494336961601863831";
-const STATUS_CHANNEL_ID = "1482388693208793299";
-const CHAT_CHANNEL_ID = "1494431096631332944";
-const INTEREST_RATE = 0.05;
+const VIP_ROLE_ID = "1494408592441475234";
 
 // ===== DATA =====
-let money={}, shopItems=[], bank={}, daily={}, reputation={};
+let money = {};
+let rep = {};
+let kills = {};
+let mailbox = {};
+let vip = {};
 
-try { shopItems = JSON.parse(fs.readFileSync('shop.json')); } catch {}
 try { money = JSON.parse(fs.readFileSync('money.json')); } catch {}
-try { bank = JSON.parse(fs.readFileSync('bank.json')); } catch {}
-try { daily = JSON.parse(fs.readFileSync('daily.json')); } catch {}
-try { reputation = JSON.parse(fs.readFileSync('rep.json')); } catch {}
+try { rep = JSON.parse(fs.readFileSync('rep.json')); } catch {}
+try { kills = JSON.parse(fs.readFileSync('kills.json')); } catch {}
+try { mailbox = JSON.parse(fs.readFileSync('mailbox.json')); } catch {}
+try { vip = JSON.parse(fs.readFileSync('vip.json')); } catch {}
 
 function saveAll(){
-  fs.writeFileSync('shop.json', JSON.stringify(shopItems,null,2));
   fs.writeFileSync('money.json', JSON.stringify(money,null,2));
-  fs.writeFileSync('bank.json', JSON.stringify(bank,null,2));
-  fs.writeFileSync('daily.json', JSON.stringify(daily,null,2));
-  fs.writeFileSync('rep.json', JSON.stringify(reputation,null,2));
+  fs.writeFileSync('rep.json', JSON.stringify(rep,null,2));
+  fs.writeFileSync('kills.json', JSON.stringify(kills,null,2));
+  fs.writeFileSync('mailbox.json', JSON.stringify(mailbox,null,2));
+  fs.writeFileSync('vip.json', JSON.stringify(vip,null,2));
 }
 
-// ===== LOG =====
-function sendLog(title, desc){
-  const ch = client.channels.cache.get(LOG_CHANNEL_ID);
-  if(!ch) return;
-
-  ch.send({
-    embeds:[
-      new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(desc)
-      .setColor(0x00ffcc)
-      .setTimestamp()
-    ]
-  });
-}
-
-// ===== UTILS =====
-function safeMoney(u){
+function safe(u){
   if(!money[u]) money[u]=0;
-  if(money[u]<0) money[u]=0;
-}
-
-function addRep(u, val){
-  if(!reputation[u]) reputation[u]=0;
-  reputation[u]+=val;
+  if(!rep[u]) rep[u]=0;
+  if(!kills[u]) kills[u]=0;
+  if(!mailbox[u]) mailbox[u]=[];
 }
 
 // ===== COMMANDES =====
 const commands = [
 
 new SlashCommandBuilder()
-.setName('shop')
-.setDescription('Ouvrir le shop'),
-
-new SlashCommandBuilder()
-.setName('bank')
-.setDescription('Ouvrir la banque'),
-
-new SlashCommandBuilder()
-.setName('daily')
-.setDescription('Récompense quotidienne'),
+.setName('money')
+.setDescription('Voir ton argent'),
 
 new SlashCommandBuilder()
 .setName('rep')
 .setDescription('Voir ta réputation'),
 
 new SlashCommandBuilder()
-.setName('additem')
-.setDescription('Ajouter un item')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
-.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true))
+.setName('kills')
+.setDescription('Voir tes kills'),
+
+new SlashCommandBuilder()
+.setName('leaderboard')
+.setDescription('Top argent'),
+
+new SlashCommandBuilder()
+.setName('mail')
+.setDescription('Voir tes messages'),
+
+new SlashCommandBuilder()
+.setName('sendmail')
+.setDescription('Envoyer un message')
+.addUserOption(o=>o.setName('user').setRequired(true).setDescription('Utilisateur'))
+.addStringOption(o=>o.setName('msg').setRequired(true).setDescription('Message')),
+
+new SlashCommandBuilder()
+.setName('addmoney')
+.setDescription('Ajouter argent')
+.addUserOption(o=>o.setName('user').setRequired(true))
+.addIntegerOption(o=>o.setName('amount').setRequired(true))
+.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+new SlashCommandBuilder()
+.setName('vip')
+.setDescription('Donner VIP')
+.addUserOption(o=>o.setName('user').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
 ];
 
-// ===== INTERACTIONS =====
+// ===== INTERACTION =====
 client.on('interactionCreate', async interaction=>{
-try{
+if(!interaction.isChatInputCommand()) return;
 
 const user = interaction.user.id;
+safe(user);
 
-// DAILY
-if(interaction.commandName==="daily"){
-const now=Date.now();
-
-if(!daily[user]) daily[user]={last:0};
-
-if(now-daily[user].last<86400000)
-return interaction.reply({content:"⏳ Reviens demain",ephemeral:true});
-
-const reward=200;
-
-money[user]=(money[user]||0)+reward;
-safeMoney(user);
-addRep(user,5);
-
-daily[user].last=now;
-saveAll();
-
-sendLog("🎁 Daily",`${interaction.user.username} +${reward}`);
-
-return interaction.reply({content:`+${reward}`,ephemeral:true});
-}
-
-// SHOP
-if(interaction.commandName==="shop"){
-if(shopItems.length===0) return interaction.reply("❌ Shop vide");
-
-const row=new ActionRowBuilder();
-
-shopItems.forEach((item,i)=>{
-row.addComponents(
-new ButtonBuilder()
-.setCustomId("buy_"+i)
-.setLabel(`${item.nom} (${item.prix})`)
-.setStyle(ButtonStyle.Primary)
-);
-});
-
-return interaction.reply({content:"🛒 Shop",components:[row]});
-}
-
-// BUY
-if(interaction.isButton() && interaction.customId.startsWith("buy_")){
-const item=shopItems[interaction.customId.split("_")[1]];
-if(!item) return;
-
-if((money[user]||0)<item.prix)
-return interaction.reply({content:"❌ Pas assez",ephemeral:true});
-
-money[user]-=item.prix;
-safeMoney(user);
-saveAll();
-
-sendLog("🛒 Achat",interaction.user.username);
-
-return interaction.reply({content:"✅ Achat",ephemeral:true});
-}
-
-// BANK
-if(interaction.commandName==="bank"){
-return interaction.reply({
-content:`💰 ${money[user]||0} | 🏦 ${bank[user]||0}`,
-ephemeral:true
-});
+// MONEY
+if(interaction.commandName==="money"){
+return interaction.reply(`💰 ${money[user]}`);
 }
 
 // REP
 if(interaction.commandName==="rep"){
-return interaction.reply({
-content:`⭐ ${reputation[user]||0}`,
-ephemeral:true
-});
+return interaction.reply(`⭐ ${rep[user]}`);
 }
 
-// ADD ITEM
-if(interaction.commandName==="additem"){
-shopItems.push({
-nom:interaction.options.getString('nom'),
-prix:interaction.options.getInteger('prix')
+// KILLS
+if(interaction.commandName==="kills"){
+return interaction.reply(`⚔️ ${kills[user]}`);
+}
+
+// LEADERBOARD
+if(interaction.commandName==="leaderboard"){
+const sorted = Object.entries(money)
+.sort((a,b)=>b[1]-a[1])
+.slice(0,10);
+
+let msg="🏆 Top Money\n";
+
+sorted.forEach((u,i)=>{
+msg+=`${i+1}. <@${u[0]}> - ${u[1]}\n`;
 });
+
+return interaction.reply(msg);
+}
+
+// MAILBOX
+if(interaction.commandName==="mail"){
+if(mailbox[user].length===0)
+return interaction.reply("📭 Vide");
+
+return interaction.reply(mailbox[user].join("\n"));
+}
+
+// SEND MAIL
+if(interaction.commandName==="sendmail"){
+const target = interaction.options.getUser('user').id;
+const msg = interaction.options.getString('msg');
+
+if(!mailbox[target]) mailbox[target]=[];
+
+mailbox[target].push(`📩 ${interaction.user.username}: ${msg}`);
 saveAll();
-return interaction.reply("✅ ajouté");
+
+return interaction.reply("✅ envoyé");
 }
 
-}catch(e){console.error(e);}
-});
+// ADD MONEY
+if(interaction.commandName==="addmoney"){
+const target = interaction.options.getUser('user').id;
+const amount = interaction.options.getInteger('amount');
 
-// ===== MESSAGE CREATE =====
-client.on('messageCreate',(m)=>{
-if(m.author.bot) return;
+safe(target);
 
-const msg=m.content;
+// BONUS VIP
+if(vip[target]) amount*=2;
 
-// DRAGON
-if(msg.includes("[DRAGON]"))
-return client.channels.cache.get(DRAGON_CHANNEL_ID)?.send(`🐉 ${msg}`);
+money[target]+=amount;
 
-// STATUS
-if(msg.includes("Server started"))
-return client.channels.cache.get(STATUS_CHANNEL_ID)?.send("🟢 ON");
+saveAll();
 
-if(msg.includes("Server stopped"))
-return client.channels.cache.get(STATUS_CHANNEL_ID)?.send("🔴 OFF");
+return interaction.reply("💰 ajouté");
+}
 
-// CHAT
-client.channels.cache.get(CHAT_CHANNEL_ID)?.send(msg);
+// VIP
+if(interaction.commandName==="vip"){
+const target = interaction.options.getUser('user');
+vip[target.id]=true;
+
+const member = await interaction.guild.members.fetch(target.id);
+member.roles.add(VIP_ROLE_ID);
+
+saveAll();
+
+return interaction.reply("👑 VIP donné");
+}
 
 });
 
 // ===== REGISTER =====
-const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
+const rest = new REST({version:'10'}).setToken(process.env.TOKEN);
 
-client.once('clientReady', async()=>{
+client.once('ready', async ()=>{
 await rest.put(
 Routes.applicationGuildCommands(client.user.id,GUILD_ID),
 {body:commands}

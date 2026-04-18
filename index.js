@@ -81,7 +81,89 @@ return {content:`🛒 ${cat} (page ${page+1})`,components:[row,nav]};
 }
 
 // ===== COMMANDES =====
-const commands=[
+const commands = [
+
+new SlashCommandBuilder()
+.setName('money')
+.setDescription('Voir ton argent'),
+
+new SlashCommandBuilder()
+.setName('pay')
+.setDescription('Envoyer de l’argent')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('addmoney')
+.setDescription('Ajouter argent (admin)')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('removemoney')
+.setDescription('Retirer argent (admin)')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('shop')
+.setDescription('Ouvrir le shop'),
+
+new SlashCommandBuilder()
+.setName('additem')
+.setDescription('Ajouter item au shop')
+.addStringOption(o=>o.setName('categorie').setDescription('Catégorie').setRequired(true))
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('vip')
+.setDescription('Donner VIP')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('createteam')
+.setDescription('Créer une team')
+.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addStringOption(o=>o.setName('objectif').setDescription('Objectif').setRequired(true))
+.addStringOption(o=>o.setName('base').setDescription('Coordonnées')),
+
+new SlashCommandBuilder()
+.setName('teaminfo')
+.setDescription('Voir infos team'),
+
+new SlashCommandBuilder()
+.setName('deleteteam')
+.setDescription('Supprimer team'),
+
+new SlashCommandBuilder()
+.setName('guerre')
+.setDescription('Déclarer guerre')
+.addStringOption(o=>o.setName('team').setDescription('Nom team').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('acceptguerre')
+.setDescription('Accepter guerre'),
+
+new SlashCommandBuilder()
+.setName('leaderboardguerre')
+.setDescription('Top guerres'),
+
+new SlashCommandBuilder()
+.setName('sendmail')
+.setDescription('Envoyer mail')
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('mail')
+.setDescription('Voir tes mails'),
+
+new SlashCommandBuilder()
+.setName('leaderboard')
+.setDescription('Classement argent'),
+
+];
 
 // ECONOMIE
 new SlashCommandBuilder().setName('money').setDescription('Voir argent'),

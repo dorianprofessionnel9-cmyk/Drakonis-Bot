@@ -159,8 +159,9 @@ new SlashCommandBuilder()
 .setDescription('Valider un joueur')
 .addStringOption(o=>o.setName('code').setDescription('Code').setRequired(true))
 .addStringOption(o=>o.setName('pseudo').setDescription('Pseudo MC').setRequired(true))
-.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true)),
-};
+.addUserOption(o=>o.setName('user').setDescription('Joueur').setRequired(true))
+
+];
 
 // ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction => {

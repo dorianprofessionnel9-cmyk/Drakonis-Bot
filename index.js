@@ -1,6 +1,6 @@
 const fs = require('fs');
 const {
-  Client, GatewayIntentBits, EmbedBuilder,
+  Client, GatewayIntentBits,
   SlashCommandBuilder, REST, Routes,
   PermissionFlagsBits
 } = require('discord.js');
@@ -17,18 +17,16 @@ const ADMIN_ROLE_ID = "TON_ROLE_ADMIN";
 const MOD_ROLE_ID = "TON_ROLE_MODO";
 
 // ===== DATA =====
-let money={}, rep={}, kills={}, shop={}, mailbox={}, vip={}, teams={}, wars={};
-
 function load(file){ try{return JSON.parse(fs.readFileSync(file))}catch{return {}} }
 
-money = load('money.json');
-rep = load('rep.json');
-kills = load('kills.json');
-shop = load('shop.json');
-mailbox = load('mailbox.json');
-vip = load('vip.json');
-teams = load('teams.json');
-wars = load('wars.json');
+let money = load('money.json');
+let rep = load('rep.json');
+let kills = load('kills.json');
+let shop = load('shop.json');
+let mailbox = load('mailbox.json');
+let vip = load('vip.json');
+let teams = load('teams.json');
+let wars = load('wars.json');
 
 function save(){
 fs.writeFileSync('money.json', JSON.stringify(money,null,2));
@@ -51,56 +49,63 @@ if(!mailbox[u]) mailbox[u]=[];
 // ===== COMMANDES =====
 const commands = [
 
-new SlashCommandBuilder().setName('money').setDescription('Voir argent'),
-new SlashCommandBuilder().setName('rep').setDescription('Voir rep'),
-new SlashCommandBuilder().setName('kills').setDescription('Voir kills'),
-
+new SlashCommandBuilder().setName('money').setDescription('Voir ton argent'),
+new SlashCommandBuilder().setName('rep').setDescription('Voir ta réputation'),
+new SlashCommandBuilder().setName('kills').setDescription('Voir tes kills'),
 new SlashCommandBuilder().setName('daily').setDescription('Récompense quotidienne'),
+new SlashCommandBuilder().setName('shop').setDescription('Voir le shop'),
 
-new SlashCommandBuilder().setName('shop').setDescription('Voir shop'),
-
-new SlashCommandBuilder().setName('additem')
-.setDescription('Ajouter item')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
-.addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true))
+new SlashCommandBuilder()
+.setName('additem')
+.setDescription('Ajouter un item')
+.addStringOption(o=>o.setName('nom').setDescription('Nom de l’item').setRequired(true))
+.addIntegerOption(o=>o.setName('prix').setDescription('Prix de l’item').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-new SlashCommandBuilder().setName('leaderboard').setDescription('Top joueurs'),
+new SlashCommandBuilder().setName('leaderboard').setDescription('Classement des joueurs'),
 
-new SlashCommandBuilder().setName('mail').setDescription('Voir messages'),
+new SlashCommandBuilder().setName('mail').setDescription('Voir tes messages'),
 
-new SlashCommandBuilder().setName('sendmail')
-.setDescription('Envoyer message')
-.addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
+new SlashCommandBuilder()
+.setName('sendmail')
+.setDescription('Envoyer un message')
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
 .addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
 
-new SlashCommandBuilder().setName('vip')
-.setDescription('Donner VIP')
-.addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
+new SlashCommandBuilder()
+.setName('vip')
+.setDescription('Donner le VIP')
+.addUserOption(o=>o.setName('user').setDescription('Utilisateur cible').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-new SlashCommandBuilder().setName('appeladmin')
-.setDescription('Signaler problème')
-.addStringOption(o=>o.setName('probleme').setDescription('Problème').setRequired(true)),
+new SlashCommandBuilder()
+.setName('appeladmin')
+.setDescription('Signaler un problème')
+.addStringOption(o=>o.setName('probleme').setDescription('Explique ton problème').setRequired(true)),
 
 // TEAM
-new SlashCommandBuilder().setName('createteam').setDescription('Créer team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
+new SlashCommandBuilder()
+.setName('createteam')
+.setDescription('Créer une team')
+.addStringOption(o=>o.setName('nom').setDescription('Nom de la team').setRequired(true)),
 
-new SlashCommandBuilder().setName('jointeam').setDescription('Rejoindre team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
+new SlashCommandBuilder()
+.setName('jointeam')
+.setDescription('Rejoindre une team')
+.addStringOption(o=>o.setName('nom').setDescription('Nom de la team').setRequired(true)),
 
-new SlashCommandBuilder().setName('leaveteam').setDescription('Quitter team'),
-new SlashCommandBuilder().setName('teaminfo').setDescription('Voir team'),
-new SlashCommandBuilder().setName('deleteteam').setDescription('Supprimer team'),
+new SlashCommandBuilder().setName('leaveteam').setDescription('Quitter ta team'),
+new SlashCommandBuilder().setName('teaminfo').setDescription('Voir ta team'),
+new SlashCommandBuilder().setName('deleteteam').setDescription('Supprimer ta team'),
 
-new SlashCommandBuilder().setName('teamleaderboard').setDescription('Top teams'),
+new SlashCommandBuilder().setName('teamleaderboard').setDescription('Classement des teams'),
 
-new SlashCommandBuilder().setName('guerre')
-.setDescription('Déclarer guerre')
+new SlashCommandBuilder()
+.setName('guerre')
+.setDescription('Déclarer une guerre')
 .addStringOption(o=>o.setName('team').setDescription('Team cible').setRequired(true)),
 
-new SlashCommandBuilder().setName('guerres').setDescription('Voir guerres')
+new SlashCommandBuilder().setName('guerres').setDescription('Voir les guerres')
 
 ];
 
@@ -111,7 +116,7 @@ if(!interaction.isChatInputCommand()) return;
 const user = interaction.user.id;
 safe(user);
 
-// ===== BASIC =====
+// BASIC
 if(interaction.commandName==="money") return interaction.reply(`💰 ${money[user]}`);
 if(interaction.commandName==="rep") return interaction.reply(`⭐ ${rep[user]}`);
 if(interaction.commandName==="kills") return interaction.reply(`⚔️ ${kills[user]}`);
@@ -124,9 +129,9 @@ save();
 return interaction.reply("🎁 +200");
 }
 
-// ===== SHOP =====
+// SHOP
 if(interaction.commandName==="shop"){
-if(Object.keys(shop).length===0) return interaction.reply("❌ Vide");
+if(Object.keys(shop).length===0) return interaction.reply("❌ Shop vide");
 
 let msg="🛒 Shop\n";
 for(let i in shop) msg+=`• ${i} - ${shop[i]}💰\n`;
@@ -139,10 +144,10 @@ const n=interaction.options.getString('nom');
 const p=interaction.options.getInteger('prix');
 shop[n]=p;
 save();
-return interaction.reply("✅ ajouté");
+return interaction.reply("✅ Item ajouté");
 }
 
-// ===== LEADERBOARD =====
+// LEADERBOARD
 if(interaction.commandName==="leaderboard"){
 let arr=Object.entries(money).sort((a,b)=>b[1]-a[1]).slice(0,10);
 let msg="🏆 Top joueurs\n";
@@ -150,7 +155,7 @@ arr.forEach((u,i)=>msg+=`${i+1}. <@${u[0]}> - ${u[1]}\n`);
 return interaction.reply(msg);
 }
 
-// ===== MAIL =====
+// MAIL
 if(interaction.commandName==="mail"){
 if(mailbox[user].length===0) return interaction.reply("📭 Vide");
 return interaction.reply(mailbox[user].join("\n"));
@@ -164,24 +169,24 @@ save();
 return interaction.reply("✅ envoyé");
 }
 
-// ===== VIP =====
+// VIP
 if(interaction.commandName==="vip"){
 const t=interaction.options.getUser('user');
 vip[t.id]=true;
 const m=await interaction.guild.members.fetch(t.id);
-m.roles.add(VIP_ROLE_ID);
+await m.roles.add(VIP_ROLE_ID);
 save();
 return interaction.reply("👑 VIP donné");
 }
 
-// ===== ADMIN CALL =====
+// ADMIN CALL
 if(interaction.commandName==="appeladmin"){
 const ch=client.channels.cache.get(ADMIN_CHANNEL_ID);
-ch.send(`<@&${ADMIN_ROLE_ID}> <@&${MOD_ROLE_ID}> 🚨 ${interaction.options.getString('probleme')}`);
+if(ch) ch.send(`<@&${ADMIN_ROLE_ID}> <@&${MOD_ROLE_ID}> 🚨 ${interaction.options.getString('probleme')}`);
 return interaction.reply({content:"✅ envoyé",ephemeral:true});
 }
 
-// ===== TEAM =====
+// TEAM
 if(interaction.commandName==="createteam"){
 const name=interaction.options.getString('nom');
 teams[name]={chef:user,membres:[user]};
@@ -213,7 +218,7 @@ return interaction.reply(`🛡️ ${t} | 👥 ${teams[t].membres.length}`);
 return interaction.reply("❌ aucune team");
 }
 
-// ===== TEAM LEADERBOARD =====
+// TEAM LEADERBOARD
 if(interaction.commandName==="teamleaderboard"){
 let list=[];
 for(let t in teams){
@@ -231,7 +236,7 @@ list.slice(0,10).forEach((e,i)=>msg+=`${i+1}. ${e.t} - ${e.pts}\n`);
 return interaction.reply(msg);
 }
 
-// ===== GUERRE =====
+// WAR
 if(interaction.commandName==="guerre"){
 const team=interaction.options.getString('team');
 wars[team]={demande:user};
@@ -251,11 +256,13 @@ return interaction.reply(msg);
 const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
 
 client.once('clientReady', async ()=>{
+try{
 await rest.put(
 Routes.applicationGuildCommands(client.user.id,GUILD_ID),
-{body:commands}
+{body:commands.map(c=>c.toJSON())}
 );
-console.log("✅ BOT READY");
+console.log("✅ COMMANDES SYNC");
+}catch(e){console.error(e);}
 });
 
 client.login(process.env.TOKEN);

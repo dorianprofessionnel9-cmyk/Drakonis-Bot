@@ -2,7 +2,9 @@ const fs = require('fs');
 const {
   Client, GatewayIntentBits,
   SlashCommandBuilder, REST, Routes,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  EmbedBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -11,10 +13,13 @@ const client = new Client({
 
 // ===== CONFIG =====
 const GUILD_ID = "1480204997613457541";
-const VIP_ROLE_ID = "1494408592441475234";
-const ADMIN_CHANNEL_ID = "1482739710617981059";
+
+const LOG_CHANNEL_ID = "1494371990113353978";          // logs-achat
+const ADMIN_CHANNEL_ID = "1495023085366022245"; // salon alertes
+
 const ADMIN_ROLE_ID = "1480214844677554176";
 const MOD_ROLE_ID = "1482081844466946160";
+const VIP_ROLE_ID = "1494408592441475234";
 
 // ===== DATA =====
 function load(file){
@@ -24,57 +29,68 @@ function load(file){
 
 let money = load('money.json');
 let shop = load('shop.json');
-let mailbox = load('mailbox.json');
+let bank = load('bank.json');
 let vip = load('vip.json');
-let teams = load('teams.json');
-let wars = load('wars.json');
-let kills = load('kills.json');
-let rep = load('rep.json');
 
 // ===== SAVE =====
 function save(){
 fs.writeFileSync('money.json', JSON.stringify(money,null,2));
 fs.writeFileSync('shop.json', JSON.stringify(shop,null,2));
-fs.writeFileSync('mailbox.json', JSON.stringify(mailbox,null,2));
+fs.writeFileSync('bank.json', JSON.stringify(bank,null,2));
 fs.writeFileSync('vip.json', JSON.stringify(vip,null,2));
-fs.writeFileSync('teams.json', JSON.stringify(teams,null,2));
-fs.writeFileSync('wars.json', JSON.stringify(wars,null,2));
-fs.writeFileSync('kills.json', JSON.stringify(kills,null,2));
-fs.writeFileSync('rep.json', JSON.stringify(rep,null,2));
 }
 
 function safe(u){
 if(!money[u]) money[u]=0;
-if(!kills[u]) kills[u]=0;
-if(!rep[u]) rep[u]=0;
-if(!mailbox[u]) mailbox[u]=[];
+if(!bank[u]) bank[u]=0;
+}
+
+// ===== LOG EMBED =====
+function log(title, desc){
+const ch = client.channels.cache.get(LOG_CHANNEL_ID);
+if(!ch) return;
+
+ch.send({
+embeds:[
+new EmbedBuilder()
+.setTitle(title)
+.setDescription(desc)
+.setColor(0x00ffcc)
+.setTimestamp()
+]
+});
 }
 
 // ===== COMMANDES =====
 const commands = [
 
 new SlashCommandBuilder().setName('money').setDescription('Voir ton argent'),
-new SlashCommandBuilder().setName('rep').setDescription('Voir ta réputation'),
-new SlashCommandBuilder().setName('kills').setDescription('Voir tes kills'),
+
 new SlashCommandBuilder().setName('daily').setDescription('Récompense quotidienne'),
+
 new SlashCommandBuilder().setName('shop').setDescription('Voir le shop'),
 
 new SlashCommandBuilder()
 .setName('additem')
 .setDescription('Ajouter un item')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true))
+.addStringOption(o=>o.setName('nom').setDescription('Nom item').setRequired(true))
 .addIntegerOption(o=>o.setName('prix').setDescription('Prix').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-new SlashCommandBuilder().setName('leaderboard').setDescription('Top joueurs'),
-
-new SlashCommandBuilder().setName('mail').setDescription('Voir tes messages'),
+new SlashCommandBuilder()
+.setName('deposit')
+.setDescription('Mettre en banque')
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
 
 new SlashCommandBuilder()
-.setName('sendmail')
-.setDescription('Envoyer un message')
-.addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
-.addStringOption(o=>o.setName('msg').setDescription('Message').setRequired(true)),
+.setName('withdraw')
+.setDescription('Retirer banque')
+.addIntegerOption(o=>o.setName('montant').setDescription('Montant').setRequired(true)),
+
+new SlashCommandBuilder()
+.setName('appeladmin')
+.setDescription('Signaler un problème')
+.addStringOption(o=>o.setName('probleme').setDescription('Problème').setRequired(true)),
 
 new SlashCommandBuilder()
 .setName('vip')
@@ -82,181 +98,175 @@ new SlashCommandBuilder()
 .addUserOption(o=>o.setName('user').setDescription('Utilisateur').setRequired(true))
 .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-new SlashCommandBuilder()
-.setName('appeladmin')
-.setDescription('Signaler un problème')
-.addStringOption(o=>o.setName('probleme').setDescription('Problème').setRequired(true)),
-
-// TEAM
-new SlashCommandBuilder()
-.setName('createteam')
-.setDescription('Créer une team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
-
-new SlashCommandBuilder()
-.setName('jointeam')
-.setDescription('Rejoindre une team')
-.addStringOption(o=>o.setName('nom').setDescription('Nom').setRequired(true)),
-
-new SlashCommandBuilder().setName('leaveteam').setDescription('Quitter team'),
-new SlashCommandBuilder().setName('teaminfo').setDescription('Voir ta team'),
-new SlashCommandBuilder().setName('deleteteam').setDescription('Supprimer ta team'),
-
-new SlashCommandBuilder().setName('teamleaderboard').setDescription('Top teams'),
-
-new SlashCommandBuilder()
-.setName('guerre')
-.setDescription('Déclarer guerre')
-.addStringOption(o=>o.setName('team').setDescription('Team cible').setRequired(true)),
-
-new SlashCommandBuilder().setName('guerres').setDescription('Voir guerres')
-
 ];
 
 // ===== INTERACTIONS =====
 client.on('interactionCreate', async interaction=>{
-if(!interaction.isChatInputCommand()) return;
+if(!interaction.isChatInputCommand() && !interaction.isButton()) return;
 
 const user = interaction.user.id;
 safe(user);
 
-// BASIC
-if(interaction.commandName==="money") return interaction.reply(`💰 ${money[user]}`);
-if(interaction.commandName==="rep") return interaction.reply(`⭐ ${rep[user]}`);
-if(interaction.commandName==="kills") return interaction.reply(`⚔️ ${kills[user]}`);
+// ===== COMMANDES =====
+
+// MONEY
+if(interaction.commandName==="money"){
+return interaction.reply(`💰 ${money[user]}`);
+}
 
 // DAILY
 if(interaction.commandName==="daily"){
-let reward = vip[user] ? 400 : 200;
-money[user]+=reward;
+const gain = vip[user] ? 400 : 200;
+
+money[user]+=gain;
 save();
-return interaction.reply(`🎁 +${reward}`);
+
+log("🎁 Daily",`${interaction.user.username} +${gain}`);
+
+return interaction.reply(`🎁 +${gain}`);
 }
 
 // SHOP
 if(interaction.commandName==="shop"){
-if(Object.keys(shop).length===0) return interaction.reply("❌ Shop vide");
 
-let msg="🛒 Shop\n";
-for(let i in shop) msg+=`• ${i} - ${shop[i]}💰\n`;
+if(Object.keys(shop).length===0)
+return interaction.reply("❌ Shop vide");
 
-return interaction.reply(msg);
+const row = new ActionRowBuilder();
+let count=0;
+
+for(let item in shop){
+row.addComponents(
+new ButtonBuilder()
+.setCustomId(`buy_${item}`)
+.setLabel(`${item} (${shop[item]})`)
+.setStyle(ButtonStyle.Primary)
+);
+
+count++;
+if(count===5) break;
 }
 
+return interaction.reply({
+content:"🛒 Shop",
+components:[row]
+});
+}
+
+// ADD ITEM
 if(interaction.commandName==="additem"){
-const n=interaction.options.getString('nom');
-const p=interaction.options.getInteger('prix');
+const n = interaction.options.getString('nom');
+const p = interaction.options.getInteger('prix');
+
 shop[n]=p;
 save();
-return interaction.reply("✅ ajouté");
+
+return interaction.reply("✅ item ajouté");
 }
 
-// LEADERBOARD
-if(interaction.commandName==="leaderboard"){
-let arr=Object.entries(money).sort((a,b)=>b[1]-a[1]).slice(0,10);
-let msg="🏆 Top joueurs\n";
-arr.forEach((u,i)=>msg+=`${i+1}. <@${u[0]}> - ${u[1]}\n`);
-return interaction.reply(msg);
-}
+// DEPOSIT
+if(interaction.commandName==="deposit"){
+const a = interaction.options.getInteger('montant');
 
-// MAIL
-if(interaction.commandName==="mail"){
-if(mailbox[user].length===0) return interaction.reply("📭 Vide");
-return interaction.reply(mailbox[user].join("\n"));
-}
+if(a<=0) return interaction.reply("❌ invalide");
+if(money[user]<a) return interaction.reply("❌ pas assez");
 
-if(interaction.commandName==="sendmail"){
-const t=interaction.options.getUser('user').id;
-if(!mailbox[t]) mailbox[t]=[];
-mailbox[t].push(`📩 ${interaction.user.username}: ${interaction.options.getString('msg')}`);
+money[user]-=a;
+bank[user]+=a;
+
 save();
-return interaction.reply("✅ envoyé");
+
+log("🏦 Dépôt",`${interaction.user.username} ${a}`);
+
+return interaction.reply(`🏦 ${a} déposé`);
+}
+
+// WITHDRAW
+if(interaction.commandName==="withdraw"){
+const a = interaction.options.getInteger('montant');
+
+if(a<=0) return interaction.reply("❌ invalide");
+if(bank[user]<a) return interaction.reply("❌ pas assez");
+
+bank[user]-=a;
+money[user]+=a;
+
+save();
+
+log("💸 Retrait",`${interaction.user.username} ${a}`);
+
+return interaction.reply(`💸 ${a} retiré`);
+}
+
+// APPEL ADMIN
+if(interaction.commandName==="appeladmin"){
+
+const msg = interaction.options.getString('probleme');
+const ch = client.channels.cache.get(ADMIN_CHANNEL_ID);
+
+if(!ch) return interaction.reply("❌ salon introuvable");
+
+ch.send(
+`🚨 PROBLÈME SERVEUR
+👤 ${interaction.user.username}
+📝 ${msg}
+
+<@&${ADMIN_ROLE_ID}> <@&${MOD_ROLE_ID}>`
+);
+
+return interaction.reply({content:"✅ envoyé",ephemeral:true});
 }
 
 // VIP
 if(interaction.commandName==="vip"){
-const t=interaction.options.getUser('user');
-vip[t.id]=true;
-const m=await interaction.guild.members.fetch(t.id);
-await m.roles.add(VIP_ROLE_ID);
+
+const target = interaction.options.getUser('user');
+vip[target.id] = true;
+
+const member = await interaction.guild.members.fetch(target.id);
+await member.roles.add(VIP_ROLE_ID);
+
 save();
+
 return interaction.reply("👑 VIP donné");
 }
 
-// ADMIN CALL
-if(interaction.commandName==="appeladmin"){
-const ch=client.channels.cache.get(ADMIN_CHANNEL_ID);
-if(ch) ch.send(`<@&${ADMIN_ROLE_ID}> <@&${MOD_ROLE_ID}> 🚨 ${interaction.options.getString('probleme')}`);
-return interaction.reply({content:"✅ envoyé",ephemeral:true});
-}
+// ===== BOUTONS SHOP =====
+if(interaction.isButton()){
 
-// TEAM
-if(interaction.commandName==="createteam"){
-const name=interaction.options.getString('nom');
-teams[name]={chef:user,membres:[user]};
+if(interaction.customId.startsWith("buy_")){
+
+const item = interaction.customId.replace("buy_","");
+const price = shop[item];
+
+if(!price) return;
+
+if(money[user]<price)
+return interaction.reply({content:"❌ pas assez",ephemeral:true});
+
+money[user]-=price;
 save();
-return interaction.reply(`🛡️ ${name} créée`);
-}
 
-if(interaction.commandName==="jointeam"){
-const name=interaction.options.getString('nom');
-if(!teams[name]) return interaction.reply("❌ inexistante");
-teams[name].membres.push(user);
-save();
-return interaction.reply("✅ rejoint");
-}
+log("🧾 Achat",
+`👤 ${interaction.user.username} a acheté ${item}
+💰 ${price}`
+);
 
-if(interaction.commandName==="teaminfo"){
-for(let t in teams){
-if(teams[t].membres.includes(user))
-return interaction.reply(`🛡️ ${t} | 👥 ${teams[t].membres.length}`);
+return interaction.reply({content:`✅ acheté ${item}`,ephemeral:true});
 }
-return interaction.reply("❌ aucune team");
-}
-
-// TEAM LEADERBOARD
-if(interaction.commandName==="teamleaderboard"){
-let list=[];
-for(let t in teams){
-let pts=0;
-teams[t].membres.forEach(id=>{
-pts+=(money[id]||0)+(kills[id]||0)*10+(rep[id]||0)*5;
-});
-list.push({t,pts});
-}
-list.sort((a,b)=>b.pts-a.pts);
-
-let msg="🏆 Teams\n";
-list.slice(0,10).forEach((e,i)=>msg+=`${i+1}. ${e.t} - ${e.pts}\n`);
-
-return interaction.reply(msg);
-}
-
-// WAR
-if(interaction.commandName==="guerre"){
-const team=interaction.options.getString('team');
-wars[team]={demande:user};
-save();
-return interaction.reply(`⚔️ guerre contre ${team}`);
-}
-
-if(interaction.commandName==="guerres"){
-let msg="⚔️ Guerres\n";
-for(let w in wars) msg+=`• ${w}\n`;
-return interaction.reply(msg);
 }
 
 });
 
 // ===== REGISTER =====
-const rest=new REST({version:'10'}).setToken(process.env.TOKEN);
+const rest = new REST({version:'10'}).setToken(process.env.TOKEN);
 
 client.once('clientReady', async ()=>{
 await rest.put(
-Routes.applicationGuildCommands(client.user.id,GUILD_ID),
-{body:commands.map(c=>c.toJSON())}
+Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+{ body: commands.map(c=>c.toJSON()) }
 );
-console.log("✅ COMMANDES OK");
+console.log("✅ BOT OPERATIONNEL");
 });
 
 client.login(process.env.TOKEN);

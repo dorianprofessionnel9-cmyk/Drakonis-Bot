@@ -1,9 +1,8 @@
 {
-  "armes": {
-    "épée": 100,
-    "arc": 150
-  },
-  "potions": {
-    "heal": 50
+  "Armes": {
+    "Épée": {
+      "price": 500,
+      "image": "https://i.imgur.com/xxxx.png"
+    }
   }
 }
